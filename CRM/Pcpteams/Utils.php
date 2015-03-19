@@ -16,8 +16,13 @@ class  CRM_Pcpteams_Utils {
   }
 
   // FIXME: convert this to API
-  static function getPcpId($componentPageId, $component, $isCreatePCP = FALSE) {
-    $cid = CRM_Pcpteams_Utils::getloggedInUserId();
+  static function getPcpId($componentPageId, $component, $isCreatePCP = FALSE, $contactId = FALSE) {
+    if(empty($contactId)) {
+      $cid = CRM_Pcpteams_Utils::getloggedInUserId();
+    } else {
+      $cid = $contactId;
+    }
+    
     if ($cid) {
       $dao = new CRM_PCP_DAO_PCP();
       $dao->contact_id = $cid;
@@ -76,24 +81,24 @@ class  CRM_Pcpteams_Utils {
   /**
    * To check the valid relationship is exists., Create If not Found one.
    */
-  static function checkORCreateTeamRelationship($iContactIdA, $iContactIdB, $checkandCreate = FALSE, $action ){
+  static function checkORCreateTeamRelationship($iContactIdA, $iContactIdB, $checkandCreate = FALSE, $action = 'join' ){
     if(empty($iContactIdA) || empty($iContactIdB)){
       $status = empty($iContactIdB) ? 'Team Contact is Missing' : 'Team Member Contact Id is Missing';
       CRM_Core_Session::setStatus($status);
     }
+    $teamRelTypeName = CRM_Pcpteams_Constant::C_TEAM_RELATIONSHIP_TYPE;
     // When a new team is created
     if($action == 'create') {
       $teamRelTypeName = CRM_Pcpteams_Constant::C_TEAM_ADMIN_REL_TYPE;
-    } else {
-      $teamRelTypeName = CRM_Pcpteams_Constant::C_TEAM_RELATIONSHIP_TYPE;
-    }
+    } 
     $relTypeId       = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', $teamRelTypeName, 'id', 'name_a_b');
 
     //check the Relationship Type Exists
     if(empty($relTypeId)){
       CRM_Core_Session::setStatus( t('Failed To create Relationship. Relationship Type (%1) does not exist.', array('%1' => $teamRelTypeName)) );
     }else{
-
+      
+      $aParams = array();
       //check the duplicates
       $aParams = array(
         'version'               => '3',
@@ -324,15 +329,15 @@ class  CRM_Pcpteams_Utils {
     return $activityType['values'][$activityType['id']]['value'];
   }
   
-  static function createPcpActivity( $contact_id, $activityname, $html , $subject){
-    if(empty($contact_id)){
+  static function createPcpActivity( $ids = array(), $activityname, $html , $subject){
+    if(empty($ids)){
       return null;
     }
     $activityTypeID = CRM_Pcpteams_Utils::getActivityTypeId($activityname);
     if($activityTypeID) {
       $activityParams = array(
-                              'source_contact_id' => $contact_id,
-                              'target_contact_id' => $contact_id,
+                              'source_contact_id' => $ids['source'],
+                              'target_contact_id' => $ids['target'],
                               'activity_type_id' => $activityTypeID,
                               'subject' => $subject,
                               'details' => $html,
