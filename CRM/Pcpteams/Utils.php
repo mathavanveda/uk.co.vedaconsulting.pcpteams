@@ -103,14 +103,15 @@ class  CRM_Pcpteams_Utils {
       $aParams = array(
         'version'               => '3',
         'is_active'             => '1',
-        'relationship_type_id'  => $relTypeId,
+        'relationship_type_id'  => $relTypeId.'_a_b',
       );
       $bDuplicateFound = CRM_Contact_BAO_Relationship::checkDuplicateRelationship($aParams, $iContactIdA, $iContactIdB);
 
       if(!$bDuplicateFound && $checkandCreate){
         $aParams['contact_id_a'] = $iContactIdA;
         $aParams['contact_id_b'] = $iContactIdB;
-
+        $aParams['relationship_type_id'] = $relTypeId;
+        $aParams['is_active'] = $action == 'create' ? 1 : 0 ;
         $createRelationship = civicrm_api3('Relationship', 'create', $aParams);
         if(!civicrm_error($createRelationship)){
           $teamName = self::getContactWithHyperlink($iContactIdB);
@@ -290,9 +291,9 @@ class  CRM_Pcpteams_Utils {
       'create', 
       array(
         'version'         => 3,
-        'pcp_title'       => $contactDisplayName.' : '.$eventDetails['title'],
-        'pcp_intro_text'  => "Welcome to ".$contactDisplayName.'\'s PCP',
-        'pcp_contact_id'  => $pcpContactId,
+        'title'           => $contactDisplayName.' : '.$eventDetails['title'],
+        'intro_text'      => "Welcome to ".$contactDisplayName.'\'s PCP',
+        'contact_id'      => $pcpContactId,
         'page_id'         => $componentPageId,
         'page_type'       => $component,
       )
