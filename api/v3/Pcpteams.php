@@ -285,9 +285,10 @@ function civicrm_api3_pcpteams_getPcpDashboardInfo($params) {
   $cfTeamPcpId = CRM_Pcpteams_Utils::getTeamPcpCustomFieldId();
   $pcpDashboardValues = array();
   foreach ($result as $pcpId => $value) {
+    $result[$pcpId]['pcpId']         = $pcpId;
     $isTeamExist                     = isset($value['custom_'.$cfTeamPcpId]) ? $value['custom_'.$cfTeamPcpId] : 0;
     $result[$pcpId]['amount_raised'] = CRM_Utils_Money::format(CRM_PCP_BAO_PCP::thermoMeter($pcpId));
-    $result[$pcpId]['goal_amount']   = CRM_Utils_Money::format($value['goal_amount']);
+    $result[$pcpId]['goal_amount']   = isset($value['goal_amount']) ? CRM_Utils_Money::format($value['goal_amount']) : CRM_Utils_Money::format('0.00');
     $result[$pcpId]['page_title']    = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $value['page_id'], 'title');
     $result[$pcpId]['isTeamExist']   = $value['isTeamExist'] = $isTeamExist;
     $result[$pcpId]['action']        = _getPcpDashboardActionLink($value);
@@ -395,12 +396,24 @@ function civicrm_api3_pcpteams_getMyTeamInfo($params) {
       FROM civicrm_pcp cp 
       LEFT JOIN civicrm_event ce ON ce.id = cp.page_id
       LEFT JOIN civicrm_contact cc ON ( cc.id = cp.contact_id )
-      LEFT JOIN civicrm_value_pcp_custom_set cpcs ON ( cpcs.entity_id = cp.id )
+      LEFT JOIN civicrm_value_pcp_custom_set cpcs ON ( cpcs.team_pcp_id = cp.id )
       WHERE cp.id IN ( $sTeamIds )
     ";
     $dao = CRM_Core_DAO::executeQuery($query);
     while($dao->fetch()){
       $myPcpId = array_search($dao->pcp_id, $teamIds); 
+      $relTypeAdmin       = CRM_Pcpteams_Constant::C_TEAM_ADMIN_REL_TYPE;
+      $adminRelTypeId     = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', $relTypeAdmin, 'id', 'name_a_b');
+      $relationshipQuery  = "SELECT id FROM civicrm_relationship where contact_id_a = %1 AND contact_id_b = %2 AND relationship_type_id = %3";
+         
+      $queryParams = array(
+        1 => array($params['contact_id'], 'Integer'),
+        2 => array($dao->pcp_contact_id, 'Integer'),
+        3 => array($adminRelTypeId, 'Integer'),
+      );
+      $relationship =  CRM_Core_DAO::singleValueQuery($relationshipQuery, $queryParams);
+      $role         = $relationship ? 'Admin' : 'Member';
+      
       $teamResult[$myPcpId] = array(
         'teamName'      => $dao->team_name,
         'my_pcp_id'     => $myPcpId,
@@ -411,7 +424,8 @@ function civicrm_api3_pcpteams_getMyTeamInfo($params) {
         'amount_raised' => CRM_Utils_Money::format(CRM_PCP_BAO_PCP::thermoMeter($dao->pcp_id)),
         'teamPcpId'     => $dao->pcp_id,
         'contactId'     => $dao->pcp_contact_id,
-        'action'        => _getTeamInfoActionLink($myPcpId, $dao->pcp_id, $cfTeamPcpId),
+        'action'        => _getTeamInfoActionLink($myPcpId, $dao->pcp_id, $role),
+        'role'          => $role,
       );
     }
     return civicrm_api3_create_success($teamResult, $params);
@@ -423,16 +437,26 @@ function _civicrm_api3_pcpteams_getMyTeamInfo_spec(&$params) {
   $params['contact_id']['api.required'] = 1;
 }
 
-function _getTeamInfoActionLink($entityId, $teamPcpId, $cfTeamPcpId){
+function _getTeamInfoActionLink($entityId, $teamPcpId, $role){
   
   //action URLs
   $pageURL    = CRM_Utils_System::url('civicrm/pcp/page', "reset=1&component=event&id={$teamPcpId}"); 
-  
-  //FIXME : check User permission and return action based on permission
-  $action     = "
+  $span = "
     <span>
       <a href=\"{$pageURL}\" class=\"action-item crm-hover-button\" title='URL for this Page' >View Page</a>
-    </span>
+    </span>";
+  if($role == 'Admin') {
+    $editURL    = CRM_Utils_System::url('civicrm/pcp/info', "action=update&component=event&id={$teamPcpId}"); 
+    $manageURL  = CRM_Utils_System::url('civicrm/pcp/manage', "id={$teamPcpId}"); 
+    $span = " <span>
+      <a href=\"{$editURL}\" class=\"action-item crm-hover-button\" title='Configure' >Edit Page</a>
+      <a href=\"{$manageURL}\" class=\"action-item crm-hover-button\" title='Manage' >Manage</a>
+      <a href=\"{$pageURL}\" class=\"action-item crm-hover-button\" title='URL for this Page' >View Page</a>
+    </span>";
+  }
+  
+  //FIXME : check User permission and return action based on permission
+  $action     = $span."
     <span class='btn-slide crm-hover-button'>more
       <ul class='panel'>
         <li>

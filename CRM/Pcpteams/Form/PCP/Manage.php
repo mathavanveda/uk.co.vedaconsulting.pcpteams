@@ -119,6 +119,8 @@ class CRM_Pcpteams_Form_PCP_Manage extends CRM_Core_Form {
       )
     );
     $this->assign('donationInfo', $aDonationResult['values']);
+    $no_donations = empty($aDonationResult['values']) ? TRUE : FALSE;
+    $this->assign('no_donations', $no_donations);
     
     // Team Info, If exists
     $teamPcpInfo    = CRM_Core_DAO::$_nullArray;
@@ -134,7 +136,18 @@ class CRM_Pcpteams_Form_PCP_Manage extends CRM_Core_Form {
     $aContactTypes   = CRM_Contact_BAO_Contact::getContactTypes( $pcpDetails['contact_id'] );
     $isIndividualPcp = in_array('Individual', $aContactTypes) ? TRUE : FALSE;
     $isTeamPcp       = in_array('Team'      , $aContactTypes) ? TRUE : FALSE;
-    
+    $this->assign('isa_team_page', $isTeamPcp);
+    if($isTeamPcp){
+      $aTopTeamDonations = civicrm_api('pcpteams', 'getTopDonations', array(
+        'version' => 3
+        , 'sequential'  => 1
+        , 'pcp_id'      => $pcpId
+        , 'page_id'     => $pcpDetails['page_id']
+        , 'limit'       => 3
+        )
+      );
+      $this->assign('topTeamDonationInfo', $aTopTeamDonations['values']);
+    }
     
     //set Page title
     if( $isIndividualPcp ){
@@ -158,11 +171,13 @@ class CRM_Pcpteams_Form_PCP_Manage extends CRM_Core_Form {
     //Pcp layout button and URLs
     $joinTeamURl    = CRM_Utils_System::url('civicrm/pcp/inline/edit'     , "reset=1&id={$pcpId}&pageId={$pcpDetails['page_id']}&op=2&snippet=json");
     $createTeamURl  = CRM_Utils_System::url('civicrm/pcp/inline/edit'     , "reset=1&id={$pcpId}&pageId={$pcpDetails['page_id']}&op=1&snippet=json");
+    $inviteTeamURl  = CRM_Utils_System::url('civicrm/pcp/inline/edit'     , "reset=1&id={$pcpId}&pageId={$pcpDetails['page_id']}&tpId={$pcpDetails['team_pcp_id']}&op=invite&snippet=json");
     $updateProfPic  = CRM_Utils_System::url('civicrm/pcp/inline/profile'  , "reset=1&id={$pcpId}&pageId={$pcpDetails['page_id']}&snippet=json");
 
     //assign values to tpl
     $this->assign('pcpId'         , $pcpId);
     $this->assign('createTeamUrl' , $createTeamURl);
+    $this->assign('inviteTeamURl' , $inviteTeamURl);
     $this->assign('joinTeamUrl'   , $joinTeamURl);
     $this->assign('updateProfPic' , $updateProfPic);
 
