@@ -14,6 +14,20 @@
       <is_multiple>0</is_multiple>
       <collapse_adv_display>0</collapse_adv_display>
     </CustomGroup>
+    <CustomGroup>
+      <name>PCP_Relationship_Set</name>
+      <title>PCP Relationship Set</title>
+      <extends>Relationship</extends>
+      <style>Inline</style>
+      <collapse_display>1</collapse_display>
+      <help_pre></help_pre>
+      <help_post></help_post>
+      <weight>3</weight>
+      <is_active>1</is_active>
+      <table_name>civicrm_value_pcp_relationship_set</table_name>
+      <is_multiple>0</is_multiple>
+      <collapse_adv_display>0</collapse_adv_display>
+    </CustomGroup>
   </CustomGroups>
   <CustomFields>
     <CustomField>
@@ -85,14 +99,48 @@
       <column_name>org_id</column_name>
       <custom_group_name>PCP_Custom_Set</custom_group_name>
     </CustomField>
+    <CustomField>
+      <name>PCP_A_B</name>
+      <label>PCP A B</label>
+      <data_type>Int</data_type>
+      <html_type>Text</html_type>
+      <is_required>0</is_required>
+      <is_searchable>0</is_searchable>
+      <is_search_range>0</is_search_range>
+      <weight>1</weight>
+      <is_active>1</is_active>
+      <is_view>0</is_view>
+      <text_length>255</text_length>
+      <note_columns>60</note_columns>
+      <note_rows>4</note_rows>
+      <column_name>pcp_a_b</column_name>
+      <custom_group_name>PCP_Relationship_Set</custom_group_name>
+    </CustomField>
+    <CustomField>
+      <name>PCP_B_A</name>
+      <label>PCP B A</label>
+      <data_type>Int</data_type>
+      <html_type>Text</html_type>
+      <is_required>0</is_required>
+      <is_searchable>0</is_searchable>
+      <is_search_range>0</is_search_range>
+      <weight>2</weight>
+      <is_active>1</is_active>
+      <is_view>0</is_view>
+      <text_length>255</text_length>
+      <note_columns>60</note_columns>
+      <note_rows>4</note_rows>
+      <column_name>pcp_b_a</column_name>
+      <custom_group_name>PCP_Relationship_Set</custom_group_name>
+    </CustomField>
   </CustomFields>
   <RelationshipTypes>
     <RelationshipType>
-      <name_a_b>Team Member of</name_a_b>
-      <label_a_b>Team Member of</label_a_b>
-      <name_b_a>Team Member is</name_b_a>
-      <label_b_a>Team Member is</label_b_a>
-      <description>Team Member Relationship</description>
+      <name_a_b>PCP Team Member of</name_a_b>
+      <label_a_b>PCP Team Member of</label_a_b>
+      <name_b_a>PCP Team Member is</name_b_a>
+      <label_b_a>PCP Team Member is</label_b_a>
+      <description>PCP Team Member Relationship</description>
       <contact_type_a>Individual</contact_type_a>
       <contact_type_b>Organization</contact_type_b>
       <contact_sub_type_a>NULL</contact_sub_type_a>
@@ -100,11 +148,11 @@
       <is_active>1</is_active>
     </RelationshipType>    
     <RelationshipType>
-      <name_a_b>Team Admin of</name_a_b>
-      <label_a_b>Team Admin of</label_a_b>
-      <name_b_a>Team Admin is</name_b_a>
-      <label_b_a>Team Admin is</label_b_a>
-      <description>Team Admin Relationship</description>
+      <name_a_b>PCP Team Admin of</name_a_b>
+      <label_a_b>PCP Team Admin of</label_a_b>
+      <name_b_a>PCP Team Admin is</name_b_a>
+      <label_b_a>PCP Team Admin is</label_b_a>
+      <description>PCP Team Admin Relationship</description>
       <contact_type_a>Individual</contact_type_a>
       <contact_type_b>Organization</contact_type_b>
       <contact_sub_type_a>NULL</contact_sub_type_a>

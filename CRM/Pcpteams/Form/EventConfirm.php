@@ -1,15 +1,14 @@
 <?php
 
-require_once 'CRM/Core/Form.php';
-
 /**
  * Search Pcp Team Class
  * Civi 4.5
  * Extends Core Form Controller.
  */
-class CRM_Pcpteams_Form_EventConfirm extends CRM_Core_Form {
+class CRM_Pcpteams_Form_EventConfirm extends CRM_Pcpteams_Form_Workflow {
 
   function preProcess() {
+    parent::preProcess();
     CRM_Utils_System::setTitle(ts('Confirm If you have a place'));
   }
 
@@ -33,8 +32,14 @@ class CRM_Pcpteams_Form_EventConfirm extends CRM_Core_Form {
   }
 
   function postProcess() {
-    $eventId = $this->get('pageId');
-    CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/event/register', "reset=1&id=$eventId"));
+    $values = $this->exportValues();
+    if ($values['is_have_place'] == 1) {
+      CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/pcp/support', "code=cpftq&qfKey={$this->controller->_key}"));
+    } 
+    else {
+      $eventId = $this->get('component_page_id');
+      CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/event/register', "reset=1&id=$eventId"));
+    }
   }
 
   /**

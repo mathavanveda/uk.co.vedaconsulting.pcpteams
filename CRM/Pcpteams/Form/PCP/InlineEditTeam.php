@@ -5,18 +5,21 @@
  *
  * @see http://wiki.civicrm.org/confluence/display/CRMDOC43/QuickForm+Reference
  */
-class CRM_Pcpteams_Form_TeamReact extends CRM_Pcpteams_Form_Workflow {
+class CRM_Pcpteams_Form_PCP_InlineEditTeam extends CRM_Core_Form {
 
   function preProcess() {
     parent::preProcess();
-    $workflowTeam   = $this->get("workflowTeam");
+    $workflowTeam       = CRM_Utils_Request::retrieve('op', 'Positive');
+    $page_id            = CRM_Utils_Request::retrieve('id', 'Positive');
+    $component_page_id  = CRM_Utils_Request::retrieve('pageId', 'Positive');
+    
+    $this->set('component_page_id', $component_page_id);
+    $this->set('page_id', $page_id);
+    
     if ($workflowTeam) {
       $this->_reactToFile = $this->getTeamReactFile($workflowTeam);
-    } else {
-      $option = CRM_Utils_Request::retrieve('option', 'String', CRM_Core_DAO::$_nullObject);
-      $this->set("workflowTeam", $option);
-      $this->_reactToFile = $this->getTeamReactFile($option);
-    }
+    } 
+
     $className = 'CRM_Pcpteams_Form_' . $this->_reactToFile;
     $className::preProcess($this);
     $this->assign('reactClass', $this->_reactToFile);
