@@ -24,79 +24,159 @@
     </div>
   </div>
   <!-- End header-->
-  
+ 
+  {if $no_donations} {* if $no-donations *}
+  <div class="pcp-info pcp-message">
+    <h3>Congratulations, you are now signed up for 'FIXME: event title'</h3>
+    <p>We have created this page to help you with your fundraising.
+      Please take a few minutes to complete a couple of details below, you will need to add a fundraising
+      target to give you something to aim for (aim high!) and write a little bit about yourself to encourage
+      people to help you reach that target.
+      If you want to do this event as a team or in memory of a loved one you can set that up below as well.
+    </p>
+  </div>
+  {/if}
+
   <div class="pcp-body">
-    <div class="totaliser">
-      <div class="colheader">
-        <h2>Totaliser</h2>
-      </div>
-      <!-- BIO section -->
-      <div id="pcp_intro_text" class="intro-text crm-pcp-inline-edit" data-edit-params='{ldelim}"cid": "{$contactId}", "class_name": "CRM_Contact_Form_Inline_ContactInfo"{rdelim}'>{$pcpinfo.intro_text}</div>
-      <div id="pcp_page_text" class="page-text crm-pcp-inline-edit">{$pcpinfo.page_text}</div>
-      <!-- BIO section ends -->
-      <div class="team-section">
-        {if $pcpinfo.team_pcp_id}
-          {if $no_donations} {* if $no-donations *}
-            <div class="invite-team-text">Invite people to the team</div>
-            <div class="invite-team-buttons">
-              <a id="invite-team-btn" class="button crm-pcp-inline-edit-team" href="{$inviteTeamURl}">{ts}Invite Team Members{/ts}</a>
-            </div>
-          {else} {* some donations *}
+    <div class="totaliser-giveto-block">
+      <div class="totaliser">
+        <div class="colheader">
+          Totaliser
+        </div>
+        <!-- BIO section -->
+        <div id="pcp_intro_text" class="intro-text crm-pcp-inline-edit" data-edit-params='{ldelim}"cid": "{$contactId}", "class_name": "CRM_Contact_Form_Inline_ContactInfo"{rdelim}'>{$pcpinfo.intro_text}</div>
+        <div id="pcp_page_text" class="page-text crm-pcp-inline-edit">{$pcpinfo.page_text}</div>
+        <!-- BIO section ends -->
+        <div class="team-section">
+          {assign var="team_pcp_id" value=$pcpinfo.team_pcp_id}
+          {if $pcpinfo.team_pcp_id}
             <div class="avatar">
               {if $teamProfilePic}
                 <img width="75" height="75" src="{$teamProfilePic}">
               {/if}
             </div>
-            <span class="team-name">{$teamPcpInfo.title}</span>
+            <span class="team-name"><a href='{crmURL p="civicrm/pcp/manage" q="id=$team_pcp_id"}'>{$teamPcpInfo.title}</a></span>
             <span class="team-text">{$teamPcpInfo.intro_text}</span>
-          {/if}
-        {elseif $isa_team_page}
-        
-          <span class="top-fund-text">Top team fundraisers.</span>
-          <div class="top-fund-raisers">
-            {if $topTeamDonationInfo}
-              {foreach from=$topTeamDonationInfo item=teamDonations}
-                <span class="fname">{$teamDonations.display_name}</span>
-              {/foreach}
+          {elseif $isa_team_page}
+            {if $no_donations} {* if $no-donations *}
+              <div class="invite-team-text">Invite people to the team</div>
+              <div class="invite-team-buttons">
+                <a id="invite-team-btn" class="button crm-pcp-inline-edit-team" href="{$inviteTeamURl}">{ts}Invite Team Members{/ts}</a>
+              </div>
             {else}
-              <span class="fname">No Donations recorded yet..</span>
+              <span class="top-fund-text">Top team fundraisers.</span>
+              <div class="top-fund-raisers">
+                {if $topTeamDonationInfo}
+                  {foreach from=$topTeamDonationInfo item=teamDonations}
+                    <span class="fname">{$teamDonations.display_name}</span>
+                  {/foreach}
+                {else}
+                  <span class="fname">No Donations recorded yet..</span>
+                {/if}
+              </div>
+              <div class="top-fund-buttons">
+                <a class="button crm-pcp-inline-edit-team" href="{$createTeamUrl}">{ts}Invite to Team{/ts}</a>
+                <a class="button crm-pcp-inline-edit-team" href="{$joinTeamUrl}">{ts}See all Team{/ts}</a>
+              </div>
             {/if}
+          {else}
+            <span class="no-team-text">Fundraise more, fundraise as a team Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius. Vestibulum viverra mi dictum odio scelerisque semper. Morbi</span>
+            <p><strong> Fundraise more, fundraise as a team </strong></p><br>
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius. Vestibulum viverra mi dictum odio scelerisque semper. Morbi</span>
+            <div class="no-team-buttons">
+              <a id="create-team-btn" class="button crm-pcp-inline-edit-team" href="{$createTeamUrl}">{ts}Create a Team{/ts}</a>
+              <a id="join-team-btn" class="button crm-pcp-inline-edit-team" href="{$joinTeamUrl}">{ts}Join a Team{/ts}</a>
+            </div>
+          {/if}
+          <div class="clear"></div>
+        </div>
+      </div>
+      <div class="givetoname">
+        <div class="colheader">
+          <div class="btn-donate">
+            <a href="/dfp/donate/59772/nojs"><span id="donate_link_text" class="crm-pcp-inline-btn-edit">Donate</span></a>
           </div>
-          <div class="top-fund-buttons">
-            <a class="button crm-pcp-inline-edit-team" href="{$createTeamUrl}">{ts}Invite to Team{/ts}</a>
-            <a class="button crm-pcp-inline-edit-team" href="{$joinTeamUrl}">{ts}See all Team{/ts}</a>
+        </div>
+        <div class="rank">
+          This Page is <strong>{$rankInfo.rank}<small>{$rankInfo.suffix}</small></strong> out of the <strong>{$rankInfo.pageCount}</strong> fundraisers taking part in event.
+        </div>
+        {foreach from=$donationInfo item=donations}
+          <div class="top-donations">
+            {$donations.display_name} has donated <strong> {$donations.total_amount|crmMoney} </strong>
           </div>
-        {else}
-          <span class="no-team-text">Fundraise more, fundraise as a team Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius. Vestibulum viverra mi dictum odio scelerisque semper. Morbi</span>
-          <div class="no-team-buttons">
-            <a id="create-team-btn" class="button crm-pcp-inline-edit-team" href="{$createTeamUrl}">{ts}Create a Team{/ts}</a>
-            <a id="join-team-btn" class="button crm-pcp-inline-edit-team" href="{$joinTeamUrl}">{ts}Join a Team{/ts}</a>
+        {/foreach}
+      </div>
+      <div class="clear"></div>
+    </div>
+
+    <div class="member-block">
+      <div class="mb-header">
+        Team Members
+      </div>
+      <div class="mb-body">
+        <div class="mb-row">
+          <div class="mb-body-row action">
+            Remove link(admin)
           </div>
-        {/if}
+          <div class="mb-body-row name">
+            Name1 Last1
+          </div>
+          <div class="mb-body-row progress">
+            34 Donations
+          </div>
+          <div class="mb-body-row raised">
+            £1,072.00
+          </div>
+          <div class="mb-body-row donate">
+            <input type="button" name="donate" value="donate"/>
+          </div>
+          <div class="clear"></div>
+        </div>
+        <div class="mb-row">
+          <div class="mb-body-row action">
+            Remove link(admin)
+          </div>
+          <div class="mb-body-row name">
+            Name2 Last2
+          </div>
+          <div class="mb-body-row progress">
+            64 Donations
+          </div>
+          <div class="mb-body-row raised">
+            £2,072.00
+          </div>
+          <div class="mb-body-row donate">
+            <input type="button" name="donate" value="donate"/>
+          </div>
+          <div class="clear"></div>
+        </div>
+        <div class="mb-row">
+          <div class="mb-body-row action">
+            Remove link(admin)
+          </div>
+          <div class="mb-body-row name">
+            Name3 Last3
+          </div>
+          <div class="mb-body-row progress">
+            24 Donations
+          </div>
+          <div class="mb-body-row raised">
+            £1,072.00
+          </div>
+          <div class="mb-body-row donate">
+            <input type="button" name="donate" value="donate"/>
+          </div>
+          <div class="clear"></div>
+        </div>
         <div class="clear"></div>
-      </div>
+      </div><!-- mb-body ends -->
+      <div class="clear"></div>
     </div>
-    <div class="givetoname">
-      <div class="colheader">
-        <div class="btn-donate">
-          <a href="/dfp/donate/59772/nojs"><span id="donate_link_text" class="crm-pcp-inline-btn-edit">Donate</span></a>
-        </div>
-      </div>
-      <div class="rank">
-        This Page is <strong>{$rankInfo.rank}<small>{$rankInfo.suffix}</small></strong> out of the <strong>{$rankInfo.pageCount}</strong> fundraisers taking part in event.
-      </div>
-      {foreach from=$donationInfo item=donations}
-        <div class="top-donations">
-          {$donations.display_name} has donated <strong> {$donations.total_amount|crmMoney} </strong>
-        </div>
-      {/foreach}
-    </div>
-    <div class="clear"></div>
   </div>
 
+  <div class="clear"></div>
 </div>
 
-<!-- End Congratulations block -->
 {literal}
 <script type="text/javascript">
 CRM.$(function($) {
@@ -158,7 +238,7 @@ CRM.$(function($) {
       title = 'Invite Team';
     }
     if(url){
-      CRM.loadForm(url, {dialog: {width: 500, height: 'auto', title: title}
+      CRM.loadForm(url, {dialog: {width: 650, height: 'auto', title: title}
                   }).on('crmFormSuccess', function(e, data) {});
     }// end if 
   });// end on click
