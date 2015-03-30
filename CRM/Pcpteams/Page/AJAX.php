@@ -64,10 +64,27 @@ class CRM_Pcpteams_Page_AJAX {
       "custom_{$teamPcpCfId}" => NULL, 
     );
     $updatedResult = civicrm_api3('CustomValue', 'create', $params);
-    if(!civicrm_error($updatedResult)){
+    if (!civicrm_error($updatedResult)) {
       echo 'updated';
-    }else{
+    }
+    else{
       echo $updatedResult['error_message'];
+    }
+    
+    CRM_Utils_System::civiExit();
+  }
+  
+  static function leaveTeam(){
+    $user_id      = CRM_Utils_Type::escape($_POST['user_id'], 'Integer');
+    $team_pcp_id  = CRM_Utils_Type::escape($_POST['team_pcp_id'], 'Integer');
+    $params       = array(
+      'version'     => '3',
+      'user_id'     => $user_id,
+      'team_pcp_id' => $team_pcp_id,
+    );
+    $result = civicrm_api('pcpteams', 'leaveTeam', $params);
+    if($result){
+      echo 'updated'; //FIXME : Need to display proper response
     }
     
     CRM_Utils_System::civiExit();

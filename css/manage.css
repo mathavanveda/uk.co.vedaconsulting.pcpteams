@@ -26,7 +26,7 @@
 .crm-container .crm-pcp-manage .pcp-panel .avatar-title-block {
   display: inline-block;
   float: left;
-  width: 68%;
+  width: 62%;
 }
 .crm-container .crm-pcp-manage .pcp-panel .avatar {
   display: inline-block;
@@ -47,11 +47,23 @@
   color: #424242;
   font-family: "Bliss Pro Heavy",Impact,sans-serif;
 }
+.crm-container .crm-pcp-manage .pcp-panel .pcp-progress {
+  display: inline-block;
+  float: left;
+  margin-top: 42px;
+  width: 15%;
+}
+.crm-container .crm-pcp-manage .pcp-panel .circle span {
+  position: relative;
+  top: -75px;
+  left: 42px;
+  font-size: 23px;
+}
 .crm-container .crm-pcp-manage .pcp-panel .stats {
   display: inline-block;
-  float: right;
-  margin-top: 45px;
-  width: 27%;
+  float: left;
+  margin-top: 61px;
+  width: 20%;
 }
 .crm-container .crm-pcp-manage .pcp-panel .stats .raised-total {
   display: block;
@@ -66,12 +78,22 @@
   font-stretch: normal !important;
   color: rgb(98,100,101) !important;
 }
+.crm-container .crm-pcp-manage .pcp-body .team-stats .amount,
 .crm-container .crm-pcp-manage .pcp-panel .stats .amount {
   font-family: "Bliss Pro Heavy",Impact,sans-serif;
 }
+.crm-container .crm-pcp-manage .pcp-body .team-stats .raised-total .amount,
+.crm-container .crm-pcp-manage .pcp-panel .stats .raised-total .amount {
+  color: rgb(224, 0, 26);
+}
+.crm-container .crm-pcp-manage .pcp-body .team-stats .raised-total .amount {
+  font-size: 22px;
+}
+.crm-container .crm-pcp-manage .pcp-body .team-stats .raised-total {
+  margin-bottom: 10px;
+}
 .crm-container .crm-pcp-manage .pcp-panel .stats .raised-total .amount {
   font-size: 40px;
-  color: rgb(224, 0, 26);
 }
 .crm-container .crm-pcp-manage .pcp-panel .stats .target .amount {
   font-size: 20px;
@@ -89,11 +111,11 @@
   width: 30%;
 }
 .crm-container .crm-pcp-manage .pcp-body .totaliser-giveto-block,
-.crm-container .crm-pcp-manage .pcp-body .member-block .mb-header,
+.crm-container .crm-pcp-manage .pcp-body .mem-header,
 .crm-container .crm-pcp-manage .pcp-body .colheader {
   margin-bottom: 10px;
 }
-.crm-container .crm-pcp-manage .pcp-body .member-block .mb-body .mb-row,
+.crm-container .crm-pcp-manage .pcp-body .mem-body .mem-row,
 .crm-container .crm-pcp-manage .pcp-body .rank,
 .crm-container .crm-pcp-manage .pcp-body .top-donations,
 .crm-container .crm-pcp-manage .pcp-body .intro-text,
@@ -104,51 +126,34 @@
   padding: 10px;
   border-radius: 12px;
 }
-.crm-container .crm-pcp-manage .pcp-body .member-block .mb-body .mb-row {
+.crm-container .crm-pcp-manage .pcp-body .mem-body .mem-row {
   width: 98%;
-}
-.crm-container .crm-pcp-manage .pcp-body .team-section .top-fund-text, 
-.crm-container .crm-pcp-manage .pcp-body .team-section .no-team-text,
-.crm-container .crm-pcp-manage .pcp-body .team-section .team-text,
-.crm-container .crm-pcp-manage .pcp-body .team-section .team-name {
-  display: block;
-}
-.crm-container .crm-pcp-manage .pcp-body .team-section .top-fund-raisers, 
-.crm-container .crm-pcp-manage .pcp-body .team-section .invite-team-buttons, 
-.crm-container .crm-pcp-manage .pcp-body .team-section .top-fund-buttons, 
-.crm-container .crm-pcp-manage .pcp-body .team-section .no-team-buttons {
-  margin-top: 15px;
-}
-.crm-container .crm-pcp-manage .pcp-body .team-section .top-fund-text, 
-.crm-container .crm-pcp-manage .pcp-body .team-section .top-fund-raisers, 
-.crm-container .crm-pcp-manage .pcp-body .team-section .invite-team-buttons {
-  text-align: center;
-}
-.crm-container .crm-pcp-manage .team-section .invite-team-text {
-  margin-bottom: 20px;
-  font-weight: bold;
-  text-align: center;
 }
 .crm-container .crm-pcp-manage .pcp-body .team-section .avatar {
   display: inline-block;
   float: left;
   width: 20%;
 }
-.crm-container .crm-pcp-manage .pcp-body .member-block .mb-body-row {
-  display: inline-block;
-  float: left;
-  width: 19%;
-}
 .crm-container .crm-pcp-manage .pcp-body .team-section .avatar img {
   float: right;
   padding-right: 30px;
 }
-.crm-container .crm-pcp-manage .pcp-body .team-section .team-name {
-  margin-bottom: 10px;
-  font-weight: bold;
+.crm-container .crm-pcp-manage .pcp-body .team-section .team-info {
+  display: inline-block;
+  width: 50%;
+  float: left;
 }
-
-.crm-container .crm-pcp-manage .pcp-body .member-block .mb-header,
+.crm-container .crm-pcp-manage .pcp-body .team-section .team-stats {
+  display: inline-block;
+  width: 25%;
+  float: right;
+}
+.crm-container .crm-pcp-manage .pcp-body .mem-body-row {
+  display: inline-block;
+  float: left;
+  width: 19%;
+}
+.crm-container .crm-pcp-manage .pcp-body .mem-header,
 .crm-container .crm-pcp-manage .btn-donate,
 .crm-container .crm-pcp-manage .pcp-body .totaliser .colheader {
   font-size: 24px;
@@ -166,9 +171,9 @@
   width: 222px;
   height: 46px;
 }
-.crm-container .crm-pcp-manage .pcp-body .member-block .mb-header,
+.crm-container .crm-pcp-manage .pcp-body .mem-header,
 .crm-container .crm-pcp-manage .pcp-body .totaliser .colheader {
-  background-color: #70716B;
+  background-color: #999999;
   height: 49px;
   border-radius: 3px;
 }
@@ -178,6 +183,34 @@
   /* to make whole button clickable, not just the text*/
   display: inline-block;
   width: 100%;
+}
+.crm-container .crm-pcp-manage .btn-donate-small {
+  color: white;
+  padding: 4px 10px 4px 10px;
+  border-radius: 6px;
+}
+.crm-container .crm-pcp-manage .pcp-button {
+  color: white;
+  padding: 4px 10px 4px 10px;
+  border-radius: 6px;
+}
+.crm-container .crm-pcp-manage .pcp-btn-green {
+  background-color: #60b044;
+}
+.crm-container .crm-pcp-manage .btn-donate-small,
+.crm-container .crm-pcp-manage .pcp-btn-red {
+  background-color: #e0001a;
+}
+.crm-container .crm-pcp-manage .pcp-bar {
+  height: 10px;
+  border-radius: 10px;
+  background-color: #999;
+  width: 100%;
+}
+.crm-container .crm-pcp-manage .pcp-bar-progress {
+  height: 10px;
+  border-radius: 10px;
+  background-color: #e0001a;
 }
 .crm-container .crm-pcp-manage .pcp-message {
   background-size: 40px 40px;
@@ -191,8 +224,7 @@
   border-radius: 3px;
   margin-bottom: 10px;
 }
-
 .crm-container .crm-pcp-manage .pcp-info {
-  background-color: #4ea5cd;
-  border-color: #3b8eb5;
+  background-color: #999999;
+  border-color: #55a12c;
 }

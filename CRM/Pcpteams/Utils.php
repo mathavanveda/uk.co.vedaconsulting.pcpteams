@@ -381,57 +381,39 @@ class  CRM_Pcpteams_Utils {
     }
   }
   
-  static function sendInviteEmail($message_template_id, $contact_id, $emailParams = array() ) {
-    $message_template_params = array(
-				'version' => 3,
-				'id' => $message_template_id,
-				);
-    $message_template_result = civicrm_api('MessageTemplate', 'get', $message_template_params);
-
-    // Get the message template html, subject
-    $html = $message_template_result['values'][$message_template_id]['msg_html'];
-    $text = $message_template_result['values'][$message_template_id]['msg_text'];
-    $subject = $message_template_result['values'][$message_template_id]['msg_subject'];
-
-    $mailing = new CRM_Mailing_BAO_Mailing;
-    $mailing->body_text = $text;
-    $mailing->body_html = $html;
-    $tokens = $mailing->getTokens();
-
-    // Replace tokens in html, text, subject
-    $subject = CRM_Utils_Token::replaceDomainTokens($subject, $domain, true, $tokens['text']);
-    $text    = CRM_Utils_Token::replaceDomainTokens($text,    $domain, true, $tokens['text']);
-    $html    = CRM_Utils_Token::replaceDomainTokens($html,    $domain, true, $tokens['html']);
-    if ($contact_id) {
-      $contact = new CRM_Contact_BAO_Contact();
-      $contact->id = $contact_id;
-      $contact->find(TRUE);
-      $contact_details = (array) $contact;
-      $subject = CRM_Utils_Token::replaceContactTokens($subject, $contact_details, false, $tokens['text']);
-      $text    = CRM_Utils_Token::replaceContactTokens($text,    $contact_details, false, $tokens['text']);
-      $html    = CRM_Utils_Token::replaceContactTokens($html,    $contact_details, false, $tokens['html']);
-
-      $category = array('contact');
-      $subject = CRM_Utils_Token::replaceHookTokens($subject, $contact_details , $category ,  false, false);
-      $text    = CRM_Utils_Token::replaceHookTokens($text,    $contact_details , $category ,  false, false);
-      $html    = CRM_Utils_Token::replaceHookTokens($html,    $contact_details , $category , true, false);
-    }
-
-    $params['text']       = $text;
-    $params['html']       = $html;
-    $params['subject']    = $subject;
+  static function sendInviteEmail($message_template_id, $contact_id, $emailParams = array(), $teampcpId ) {
     
-    list($fromName, $fromEmail) = CRM_Contact_BAO_Contact::getContactDetails($contact_id);
-    // Get the system default from email address
-    $params['from'] = "$fromName <$fromEmail>";
-    foreach($emailParams as $emailParam) {
-      if(CRM_Utils_Array::value('email', $emailParam)) {
-        $params['toEmail']  = $emailParam['email'];
-        $params['toName']   = "{$emailParam['first_name']} {$emailParam['last_name']}";
-        // Comment below line abort sending email
-        $sent = CRM_Utils_Mail::send( $params );
+    $mailParams = array();
+    //create contact corresponding to each friend
+    foreach ($emailParams['friend'] as $key => $details) {
+      if ($details["first_name"]) {
+        $contactParams[$key] = array(
+          'first_name' => $details["first_name"],
+          'last_name' => $details["last_name"],
+          'contact_source' => ts('PCP Team Invite'),
+          'email-Primary' => $details["email"],
+        );
+
+        $displayName = $details["first_name"] . " " . $details["last_name"];
+        $mailParams['email'][$displayName] = $details["email"];
       }
     }
+    
+      //friend contacts creation
+    foreach ($contactParams as $key => $value) {
+      //create contact only if it does not exits in db
+      $value['email'] = $value['email-Primary'];
+      $value['check_permission'] = FALSE;
+      $contact = CRM_Core_BAO_UFGroup::findContact($value, NULL, 'Individual');
+
+      if (!$contact) {
+        $contact = CRM_Contact_BAO_Contact::createProfileContact($value, CRM_Core_DAO::$_nullArray);
+      }
+    }
+    $mailParams['message'] = CRM_Utils_Array::value('suggested_message', $emailParams);
+    $mailParams['messageTemplateID'] = $message_template_id;
+    $mailParams['page_url'] = CRM_Utils_System::url('civicrm/pcp/manage', "reset=1&id={$teampcpId}", TRUE, NULL, FALSE, TRUE);
+    self::sendMail($contact_id, $mailParams);
   }
   
   static function getPcpBlockId($eventId, $component = 'event') {
@@ -457,4 +439,104 @@ class  CRM_Pcpteams_Utils {
     $dao->find(TRUE);
     return $dao->id;
   }
+  
+  static function hasPermission($pcpId, $loggedContactId, $action = CRM_Core_Permission::EDIT) {
+    if(empty($pcpId)) {
+      return NULL;
+    }
+    $pcpOwnerContactId  = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCP', $pcpId, 'contact_id');
+    $hasPermission      = FALSE;
+    if(empty($loggedContactId)) {
+      $loggedContactId = CRM_Pcpteams_Utils::getloggedInUserId();
+    } 
+    // Check the pcp page which he is looking is the owner of pcp, then allow 'edit' permission 
+    if($pcpOwnerContactId == $loggedContactId) {
+      $hasPermission = TRUE;
+    } // Else if he is the memeber of the pcp , then allow 'view' permission
+    else if ($action == CRM_Core_Permission::VIEW) { 
+      // Find PCPs for this contact 
+      $pcpQuery = "
+        SELECT cps.id FROM civicrm_value_pcp_custom_set cps 
+        INNER JOIN civicrm_pcp cp ON (cp.id = cps.entity_id)
+        WHERE cps.team_pcp_id = %1 AND cp.contact_id = %2";
+      $pcpQueryParams = array(
+        1 => array($pcpId, 'Integer'),
+        2 => array($loggedContactId, 'Integer'),
+      );
+      if(CRM_Core_DAO::singleValueQuery($pcpQuery, $pcpQueryParams)) {
+          $hasPermission = TRUE;
+      }
+    }
+    else {
+        $query = "
+          SELECT cr.id FROM civicrm_relationship cr
+          INNER JOIN civicrm_relationship_type crt ON (crt.id = cr.relationship_type_id)
+          WHERE cr.contact_id_a = %1 AND cr.contact_id_b = %2 AND cr.is_active = %3 AND crt.name_a_b = %4";
+
+        $queryParams = array(
+          1 => array($loggedContactId, 'Integer'),
+          2 => array($pcpOwnerContactId, 'Integer'),
+          3 => array(1, 'Integer'),
+          4 => array(CRM_Pcpteams_Constant::C_TEAM_ADMIN_REL_TYPE, 'String'),
+        );
+
+        if(CRM_Core_DAO::singleValueQuery($query, $queryParams)) {
+          $hasPermission = TRUE;
+        }
+      }
+    return $hasPermission;
+  }
+
+  static function getTeamAdminByTeamContactId($teamContactId) {
+    if(empty($teamContactId)) {
+      return NULL;
+    }
+    $query = "
+      SELECT cc.display_name FROM civicrm_relationship cr 
+      INNER JOIN civicrm_contact cc ON (cc.id = cr.contact_id_a)
+      INNER JOIN civicrm_relationship_type crt ON (crt.id = cr.relationship_type_id)
+      WHERE cr.contact_id_b = %1 AND crt.name_a_b = %2
+    ";
+    
+    $queryParams = array(
+       1 => array($teamContactId, 'Integer'),
+       2 => array(CRM_Pcpteams_Constant::C_TEAM_ADMIN_REL_TYPE, 'String'),
+    );
+    
+    return CRM_Core_DAO::singleValueQuery($query, $queryParams);
+  }
+    
+  static function sendMail($contactID, &$values) {
+    list($fromName, $email) = CRM_Contact_BAO_Contact::getContactDetails($contactID);
+    // if no $fromName (only email collected from originating contact) - list returns single space
+    if (trim($fromName) == '') {
+      $fromName = $email;
+    }
+
+    // use contact email, CRM-4963
+    if (empty($values['email_from'])) {
+      $values['email_from'] = $email;
+    }
+    foreach ($values['email'] as $displayName => $emailTo) {
+      if ($emailTo) {
+        // FIXME: factor the below out of the foreach loop
+        CRM_Core_BAO_MessageTemplate::sendTemplate(
+          array(
+            'messageTemplateID' => $values['messageTemplateID'],
+            'contactId' => $contactID,
+            'tplParams' => array(
+              'senderContactName' => $fromName,
+              'pageURL' => $values['page_url'],
+              'senderMessage' => $values['message']
+            ),
+            'from' => "$fromName <{$values['email_from']}>",
+            'toName' => $displayName,
+            'toEmail' => $emailTo,
+            'replyTo' => $email,
+          )
+        );
+      }
+    }
+  }
+
 }

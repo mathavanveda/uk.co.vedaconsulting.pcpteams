@@ -94,7 +94,6 @@ function civicrm_api3_pcpteams_get($params) {
   //the field_name check fails 'pcp_contact_id' == 'contact_id' in _civicrm_api3_dao_to_array()
   $result[$dao->id]['contact_id']    = $dao->contact_id;
    
-  $result[$dao->id]['amount_raised'] = CRM_PCP_BAO_PCP::thermoMeter($params['pcp_id']);
   
   // Append custom info
   // Note: This should ideally be done in _civicrm_api3_dao_to_array, but since PCP is not one of 
@@ -103,7 +102,9 @@ function civicrm_api3_pcpteams_get($params) {
   
   //custom data with customfield names, to avoid reusing the custom field id everytime
   _civicrm_api3_pcpteams_getCustomData($result);
-
+  
+  //append custom data page_tile, amount_raised_sofar, is_teampage, image_url, donate_url
+  _civicrm_api3_pcpteams_getMoreInfo($result);
   return civicrm_api3_create_success($result, $params);
 }
 function _civicrm_api3_pcpteams_get_spec(&$params) {
@@ -274,6 +275,12 @@ function civicrm_api3_pcpteams_getContactList($params) {
         'label' =>  $dao->display_name,
         'icon_class' =>  $dao->contact_type,
       );
+      // If contact_sub_type is 'Team', then add team_admin details to contact
+      if(isset($params['contact_sub_type']) && $params['contact_sub_type'] == 'Team') {
+        $teamAdmin        = CRM_Pcpteams_Utils::getTeamAdminByTeamContactId($dao->id);
+        $teamAdminString  = $teamAdmin ? ' Admin is: '.$teamAdmin : ' Admin is: unknown';
+        $result[$dao->id]['label'] .= $teamAdminString;
+      }
     }
 
   return civicrm_api3_create_success($result, $params, 'pcpteams');
@@ -286,27 +293,20 @@ function civicrm_api3_pcpteams_getPcpDashboardInfo($params) {
   $result = @_civicrm_api3_dao_to_array($dao);
   _civicrm_api3_pcpteams_custom_get($result);
   
-  $cfTeamPcpId = CRM_Pcpteams_Utils::getTeamPcpCustomFieldId();
   $pcpDashboardValues = array();
   foreach ($result as $pcpId => $value) {
-    $raisedSofar = civicrm_api('pcpteams', 'getRaisedSoFar', array(
-      'version' => 3
-      , 'sequential'  => 1
-      , 'pcp_id'      => $pcpId
-      , 'page_id'     => $value['page_id']
+    $pcpResult = civicrm_api('pcpteams', 'get', array(
+      'version'     => 3,
+      'sequential'  => 1,
+      'pcp_id'      => $pcpId
       )
     );
-    $amountRaised = $raisedSofar['values'][0];
-    if($amountRaised){
-      $result[$pcpId]['amount_raised']  =  CRM_Utils_Money::format($amountRaised);
-    }else{
-      $result[$pcpId]['amount_raised'] =  CRM_Utils_Money::format('0.00');
-    }
+
     $result[$pcpId]['pcpId']         = $pcpId;
-    $isTeamExist                     = isset($value['custom_'.$cfTeamPcpId]) ? $value['custom_'.$cfTeamPcpId] : 0;
-    $result[$pcpId]['goal_amount']   = isset($value['goal_amount']) ? CRM_Utils_Money::format($value['goal_amount']) : CRM_Utils_Money::format('0.00');
-    $result[$pcpId]['page_title']    = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $value['page_id'], 'title');
-    $result[$pcpId]['isTeamExist']   = $value['isTeamExist'] = $isTeamExist;
+    $result[$pcpId]['goal_amount']   = $pcpResult['values'][0]['goal_amount'];
+    $result[$pcpId]['amount_raised'] = $pcpResult['values'][0]['amount_raised'];
+    $result[$pcpId]['page_title']    = $pcpResult['values'][0]['page_title'];
+    $result[$pcpId]['isTeamExist']   = $value['isTeamExist'] = $pcpResult['values'][0]['is_teampage'];
     $result[$pcpId]['action']        = _getPcpDashboardActionLink($value);
   }
 
@@ -322,7 +322,6 @@ function _getPcpDashboardActionLink($params){
   $updateLabel= $params['isTeamExist'] ? 'Change' : 'Join';
   
   //action URLs
-  $editURL    = CRM_Utils_System::url('civicrm/pcp/info', "action=update&component=event&id={$params['id']}"); 
   $manageURL  = CRM_Utils_System::url('civicrm/pcp/manage', "id={$params['id']}"); 
   $pageURL    = CRM_Utils_System::url('civicrm/pcp/page', "reset=1&component=event&id={$params['id']}"); 
   $updateURL  = CRM_Utils_System::url('civicrm/pcp/info', "action=browse&component=event&id={$params['id']}"); 
@@ -333,16 +332,13 @@ function _getPcpDashboardActionLink($params){
   if(empty($params['is_active'])) {
     $action     = "
     <span>
-      <a href=\"{$editURL}\" class=\"action-item crm-hover-button\" title='Configure' >Edit Page</a>
-      <a href=\"{$pageURL}\" class=\"action-item crm-hover-button\" title='URL for this Page' >View Page</a>
+      <a href=\"{$manageURL}\" class=\"action-item crm-hover-button\" title='Configure' >Manage</a>
+      <a href=\"{$manageURL}\" class=\"action-item crm-hover-button\" title='URL for this Page' >View Page</a>
     </span>
     <span class='btn-slide crm-hover-button'>more
       <ul class='panel'>
         <li>
           <a href=\"{$disableURL}\" class=\"action-item crm-hover-button\" title=\"$active\" >{$active}</a>
-        </li>
-        <li>
-          <a href=\"{$deleteURL}\" class=\"action-item crm-hover-button small-popup\" title='Delete' onclick = \"return confirm('Are you sure you want to delete this Personal Campaign Page?\nThis action cannot be undone.');\">Delete</a>
         </li>
       </ul>
     </span>
@@ -356,9 +352,8 @@ function _getPcpDashboardActionLink($params){
   //FIXME : check User permission and return action based on permission
   $action     = "
     <span>
-      <a href=\"{$editURL}\" class=\"action-item crm-hover-button\" title='Configure' >Edit Page</a>
       <a href=\"{$manageURL}\" class=\"action-item crm-hover-button\" title='Manage' >Manage</a>
-      <a href=\"{$pageURL}\" class=\"action-item crm-hover-button\" title='URL for this Page' >View Page</a>
+      <a href=\"{$manageURL}\" class=\"action-item crm-hover-button\" title='URL for this Page' >View Page</a>
     </span>
     <span class='btn-slide crm-hover-button'>more
       <ul class='panel'>
@@ -431,28 +426,21 @@ function civicrm_api3_pcpteams_getMyTeamInfo($params) {
       $relationship =  CRM_Core_DAO::singleValueQuery($relationshipQuery, $queryParams);
       $role         = $relationship ? 'Admin' : 'Member';
       
-      $raisedSofar = civicrm_api('pcpteams', 'getRaisedSoFar', array(
+      $pcpResult = civicrm_api('pcpteams', 'get', array(
         'version' => 3
         , 'sequential'  => 1
         , 'pcp_id'      => $dao->pcp_id
-        , 'page_id'     => $dao->page_id
         )
       );
-      $amountRaised = $raisedSofar['values'][0];
-      if($amountRaised){
-        $amountRaised  =  CRM_Utils_Money::format($amountRaised);
-      }else{
-          $amountRaised =  CRM_Utils_Money::format('0.00');
-      }
-      
+     
       $teamResult[$myPcpId] = array(
         'teamName'      => $dao->team_name,
         'my_pcp_id'     => $myPcpId,
-        'my_pcp_title'  => CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCP', $myPcpId, 'title'),
+        'my_pcp_title'  => $pcpResult['values'][0]['page_title'],
         'teamPcpTitle'  => $dao->pcp_title,
         'pageTitle'     => $dao->page_title,
-        'teamgoalAmount'=> CRM_Utils_Money::format($dao->pcp_goal_amount),
-        'amount_raised' => $amountRaised,
+        'teamgoalAmount'=> $dao->pcp_goal_amount,
+        'amount_raised' => $pcpResult['values'][0]['amount_raised'],
         'teamPcpId'     => $dao->pcp_id,
         'contactId'     => $dao->pcp_contact_id,
         'action'        => _getTeamInfoActionLink($myPcpId, $dao->pcp_id, $role),
@@ -480,7 +468,6 @@ function _getTeamInfoActionLink($entityId, $teamPcpId, $role){
     $editURL    = CRM_Utils_System::url('civicrm/pcp/info', "action=update&component=event&id={$teamPcpId}"); 
     $manageURL  = CRM_Utils_System::url('civicrm/pcp/manage', "id={$teamPcpId}"); 
     $span = " <span>
-      <a href=\"{$editURL}\" class=\"action-item crm-hover-button\" title='Configure' >Edit Page</a>
       <a href=\"{$manageURL}\" class=\"action-item crm-hover-button\" title='Manage' >Manage</a>
       <a href=\"{$pageURL}\" class=\"action-item crm-hover-button\" title='URL for this Page' >View Page</a>
       <a href='javascript:void(0)' class=\"action-item crm-hover-button\" title='Delete' onclick = 'deleteTeamPcp({$entityId},{$teamPcpId});'>Delete</a>
@@ -524,17 +511,22 @@ function civicrm_api3_pcpteams_getMyPendingTeam($params) {
       FROM civicrm_pcp cp 
       INNER JOIN civicrm_event ce ON ce.id = cp.page_id
       INNER JOIN civicrm_contact cc ON ( cc.id = cp.contact_id )
-      INNER JOIN civicrm_value_pcp_custom_set cpcs ON ( cpcs.entity_id = cp.id )
       WHERE cp.contact_id IN ( $sTeamIds )
     ";
     $dao = CRM_Core_DAO::executeQuery($query);
     while($dao->fetch()){
+      $pcpResult = civicrm_api('pcpteams', 'get', array(
+          'version' => 3,
+          'sequential'  => 1,
+          'pcp_id'      => $dao->pcp_id
+        )
+      );
       $result[] = array(
         'teamName'      => $dao->team_name,
         'teamPcpTitle'  => $dao->pcp_title,
         'pageTitle'     => $dao->page_title,
-        'teamgoalAmount'=> CRM_Utils_Money::format($dao->pcp_goal_amount),
-        'amount_raised' => CRM_Utils_Money::format(CRM_PCP_BAO_PCP::thermoMeter($dao->pcp_id)),
+        'teamgoalAmount'=> $dao->pcp_goal_amount,
+        'amount_raised' => $pcpResult['values'][0]['amount_raised'],
         'teamPcpId'     => $dao->pcp_id,
         'contactId'     => $dao->pcp_contact_id,
       );
@@ -697,6 +689,102 @@ function civicrm_api3_pcpteams_getTeamMembers($params) {
     }
   }
   return civicrm_api3_create_success($result, $params);
+}
+
+function _civicrm_api3_pcpteams_getTeamMemberPCPIds($params){
+  
+  if (isset($params['teams'])) {
+    $teamPcpId = implode(', ', $params['teams']);
+    $selectClause = "entity_id as pcp_id";
+    $whereClause  = "team_pcp_id IN ( {$teamPcpId} )";
+    if (empty($teamPcpId)) {
+      return array();
+    }
+  } else {
+    
+    if(empty($params['pcp_id'])){
+      return CRM_Core_DAO::$_nullArray;
+    }
+    
+    $params['contact_id'] = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCP', $params['pcp_id'], 'contact_id');
+    
+    $contactSubType = CRM_Contact_BAO_Contact::getContactTypes($params['contact_id']);
+    if (in_array(CRM_Pcpteams_Constant::C_CONTACT_SUB_TYPE, $contactSubType)) {
+      $teamPcpId = $params['pcp_id'];
+      $selectClause = "entity_id as pcp_id";
+      $whereClause  = "team_pcp_id IN ( {$teamPcpId} )";
+    } elseif (in_array('Individual', $contactSubType)) {
+      $selectClause = "team_pcp_id as pcp_id";
+      $whereClause  = "entity_id = {$params['pcp_id']}";
+    }
+    
+  }
+
+  $query = "
+    SELECT {$selectClause} 
+    FROM civicrm_value_pcp_custom_set 
+    WHERE {$whereClause}
+  ";
+  $dao = CRM_Core_DAO::executeQuery($query);
+  $ids = array();
+  while ($dao->fetch()) {
+    $ids[] = $dao->pcp_id;
+  }
+  if (!isset($params['teams']) && in_array('Individual', $contactSubType)){
+    $params['teams'] = $ids;
+    $ids = _civicrm_api3_pcpteams_getTeamMemberPCPIds($params);
+  }
+  
+  return $ids;
+}
+
+function civicrm_api3_pcpteams_getTeamMembersInfo($params){
+  
+  $teamMemberPcpIds = _civicrm_api3_pcpteams_getTeamMemberPCPIds($params);
+  
+  if(empty($teamMemberPcpIds)){
+     return CRM_Core_DAO::$_nullArray; 
+  }
+  $teamMemberPcpIds   = implode(', ', $teamMemberPcpIds);
+  $relTypeAdmin       = CRM_Pcpteams_Constant::C_TEAM_ADMIN_REL_TYPE;
+  $adminRelTypeId     = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', $relTypeAdmin, 'id', 'name_a_b');
+
+  $query = "
+    SELECT cp.id        as pcp_id
+      , cp.page_id      as page_id
+      , cp.contact_id   as contact_id
+      , cp.goal_amount  as goal_amount
+      , cc.display_name as display_name
+      , CASE 
+        WHEN cr.relationship_type_id = {$adminRelTypeId} THEN '1' ELSE '0'
+        END             as is_team_admin
+    FROM civicrm_pcp cp
+    LEFT JOIN civicrm_value_pcp_custom_set cpcs ON (cpcs.entity_id = cp.id)
+    LEFT JOIN civicrm_contact cc ON (cc.id = cp.contact_id)
+    LEFT JOIN civicrm_relationship cr ON (cr.contact_id_a = cp.contact_id AND cr.is_active)
+    where cp.id IN ( $teamMemberPcpIds )
+  ";
+  $dao = CRM_Core_DAO::executeQuery($query);
+  while ($dao->fetch()) {
+    $members[$dao->pcp_id] = $dao->toArray();
+  }
+  //amount raised and total donations count
+  foreach ($members as $memberPcpId => $values) {
+    $getAllDonations            = civicrm_api3_pcpteams_getAllDonations(array('page_id' => $values['page_id'], 'pcp_id' => $values['pcp_id']));
+    $values ['donations_count'] = $getAllDonations['count'];
+    $result[$memberPcpId]  = $values;
+  }
+  //donation URL and more info
+  _civicrm_api3_pcpteams_getMoreInfo($result);
+  
+  //Sort By Amount Raised
+  _civicrm_api3_pcpteams_sortby_amount_raised($result);
+  
+  return civicrm_api3_create_success($result, $params);
+}
+
+function _civicrm_api3_pcpteams_getTeamMembersInfo_spec(&$params) {
+  $params['pcp_id']['api.required'] = 1;
 }
 
 function _getTeamMemberActionLink($activityId, $myPcpId, $teamPcpId){
@@ -938,3 +1026,109 @@ function _civicrm_api3_pcpteams_getRaisedSoFar_spec(&$params) {
   $params['pcp_id']['api.required'] = 1;
 }
 
+function _civicrm_api3_pcpteams_getMoreInfo(&$params) {
+  foreach ($params as $pcpId => $pcpValues) {
+    $entityFile   = CRM_Core_BAO_File::getEntityFile('civicrm_pcp', $pcpId);
+    $imageUrl = "";
+    $fileId   = NULL;
+    if($entityFile){
+      $fileInfo = reset($entityFile);
+      $fileId   = $fileInfo['fileID'];
+      $imageUrl = CRM_Utils_System::url('civicrm/file',"reset=1&id=$fileId&eid={$pcpId}"); 
+    }
+    $pcpBlockId         = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCP', $pcpId, 'pcp_block_id', 'id');
+    $contributionPageId = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCPBlock', $pcpBlockId, 'target_entity_id', 'id');
+    $donateUrl          = CRM_Utils_System::url('civicrm/contribute/transact', 'id='.$contributionPageId.'&pcpId='.$pcpId.'&reset=1');
+    
+    $aContactTypes   = CRM_Contact_BAO_Contact::getContactTypes( $pcpValues['contact_id'] );
+    $isTeamPcp       = in_array('Team'      , $aContactTypes) ? TRUE : FALSE;
+     $params[$pcpId]['page_title']       = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $pcpValues['page_id'], 'title');
+     $params[$pcpId]['amount_raised']    = civicrm_api3_pcpteams_getAmountRaised($pcpId);
+     $params[$pcpId]['image_url']        = $imageUrl ? $imageUrl : CRM_Pcpteams_Constant::C_DEFAULT_PROFILE_PIC;
+     $params[$pcpId]['image_id']         = $fileId;
+     $params[$pcpId]['donate_url']       = $donateUrl;
+     $params[$pcpId]['is_teampage']      = $isTeamPcp;
+    
+    //calculate percentage
+    $percentage   = 0;
+    if(isset($pcpValues['goal_amount']) && number_format($pcpValues['goal_amount']) != '0'){
+      $percentage = number_format(($params[$pcpId]['amount_raised'] / $params[$pcpId]['goal_amount']) * 100);
+    }
+    $params[$pcpId]['percentage']       = $percentage;
+  }
+}
+
+function civicrm_api3_pcpteams_getAmountRaised($pcpId) {
+    $query = "
+    SELECT SUM(cc.total_amount) as total
+    FROM civicrm_pcp_block cpb
+    INNER JOIN civicrm_contribution cc on (cc.contribution_page_id = cpb.target_entity_id )
+    WHERE cc.id IN ( SELECT contribution_id FROM civicrm_contribution_soft WHERE pcp_id = %1)
+    AND cc.contribution_status_id =1 AND cc.is_test = 0";
+
+    $params = array(1 => array($pcpId, 'Integer'));
+    $amountRaised = CRM_Core_DAO::singleValueQuery($query, $params);
+    return $amountRaised ? $amountRaised : '0.00';
+}
+
+function civicrm_api3_pcpteams_getTeamRequestInfo($params) {
+  $result= CRM_Core_DAO::$_nullArray;
+  $query = " 
+    SELECT crs.pcp_a_b, cc.display_name, cp.page_id, cr.id FROM civicrm_value_pcp_relationship_set crs
+    INNER JOIN civicrm_relationship cr ON (cr.id = crs.entity_id)
+    INNER JOIN civicrm_pcp cp ON (cp.id = crs.pcp_a_b)
+    INNER JOIN civicrm_contact cc ON (cr.contact_id_a = cc.id)
+    WHERE crs.pcp_b_a = %1";
+  
+  $queryParams = array(
+    1 => array($params['team_pcp_id'], 'Integer'),
+  );
+  
+  $dao = CRM_Core_Dao::executeQuery($query, $queryParams);
+  while($dao->fetch()) {
+    $memberPcpResult = civicrm_api('Pcpteams', 'get', array('version' => 3, 'sequential' => 1, 'pcp_id' => $dao->pcp_a_b));
+    $getAllDonations = civicrm_api3_pcpteams_getAllDonations(array('page_id' => $dao->page_id, 'pcp_id' => $dao->pcp_a_b));
+    $result[$dao->pcp_a_b] = array(
+      'display_name'       => $dao->display_name,
+      'pcp_id'             => $dao->pcp_a_b,
+      'amount_raised'      => $memberPcpResult['values'][0]['amount_raised'],
+      'donations_count'    => $getAllDonations['count'],
+      'image_url'          => $memberPcpResult['values'][0]['image_url'] ? $memberPcpResult['values'][0]['image_url'] : CRM_Pcpteams_Constant::C_DEFAULT_PROFILE_PIC,
+      'image_id'           => $memberPcpResult['values'][0]['image_id'],
+      'team_pcp_id'        => $params['team_pcp_id'],
+      'relationship_id'    => $dao->id
+    );
+  }
+  return civicrm_api3_create_success($result, $params);
+}
+
+function _civicrm_api3_pcpteams_sortby_amount_raised(&$result){
+  //FIXME: to manage ASC, DESC by params. sort by Highest amount raiser by default now
+  //array sort by amount raised
+  $amountRaised = array();
+  foreach ($result as $key => $row)
+  {
+      $amountRaised[$key]  = $row['amount_raised'];
+      $donationCount[$key] = $row['donations_count'];
+  }
+  array_multisort($amountRaised, SORT_DESC, $donationCount, SORT_DESC, $result);
+}
+
+function civicrm_api3_pcpteams_leaveTeam($params) {
+  $teamPcpCfId  = CRM_Pcpteams_Utils::getTeamPcpCustomFieldId();
+  $team_pcp_id  = $params['team_pcp_id']; 
+  $user_id      = $params['user_id']; 
+  $query = "
+    Update civicrm_value_pcp_custom_set
+    Set team_pcp_id = NULL
+    Where team_pcp_id = {$team_pcp_id} AND entity_id IN ( SELECT id FROM civicrm_pcp WHERE contact_id = {$user_id} )
+  ";
+  $dao = CRM_Core_DAO::executeQuery($query);
+  $teamPcpTitle = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCP', $team_pcp_id, 'title');
+  CRM_Core_Session::setStatus(ts("Unsubscribe from {$teamPcpTitle}"), NULL, 'success');
+  return TRUE;
+}
+function _civicrm_api3_pcpteams_leaveTeam_spec(&$params) {
+  $params['user_id']['api.required'] = 1;
+  $params['team_pcp_id']['api.required'] = 1;
+}

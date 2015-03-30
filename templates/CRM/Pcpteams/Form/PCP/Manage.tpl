@@ -4,37 +4,38 @@
   <div class="pcp-panel">
     <!-- profile Image -->
     <div class="avatar-title-block">
-      <div class="avatar">
-        {if $profilePicUrl}
-          <img class="crm-pcp-inline-edit-pic" href="{$updateProfPic}"width="150" height="150" src="{$profilePicUrl}">
-        {/if}
-      </div>
-      <div id="pcp_title" class="title crm-pcp-inline-edit">{$pcpinfo.title}</div>
+        <div class="avatar">
+          <img id="{$pcpinfo.image_id}" {if $is_edit_page} class="crm-pcp-inline-edit-pic" {/if} href="{$updateProfPic}" width="150" height="150" src="{$pcpinfo.image_url}">
+        </div>
+        <div id="pcp_title" class="title {if $is_edit_page}crm-pcp-inline-edit{/if}">{$pcpinfo.title}</div>
       <div class="clear"></div>
+    </div>
+    <div class="pcp-progress">
+      <div class="circle">
+        <span class="stat-num"><strong>{$pcpinfo.percentage}</strong></span>
+      </div>
     </div>
     <div class="stats">
       <div class="raised-total">
-        <span class="amount">{$pcpinfo.amount_raised}</span>
+        <span class="amount">{$pcpinfo.amount_raised|crmMoney:$pcpInfo.currency}</span>
         <div class="raised"><span class="text">Raised so far</span></div>
       </div> 
       <div class="target">
         <span class="text">Of target</span>
-        <div id="pcp_goal_amount" class="amount crm-pcp-inline-edit">{$pcpinfo.goal_amount|crmMoney}</div>
+          <div id="pcp_goal_amount" class="amount {if $is_edit_page}crm-pcp-inline-edit{/if}">{$pcpinfo.goal_amount|crmMoney:$pcpInfo.currency}</div>
       </div> 
     </div>
+    <div class="clear"></div>
   </div>
   <!-- End header-->
- 
-  {if $no_donations} {* if $no-donations *}
-  <div class="pcp-info pcp-message">
-    <h3>Congratulations, you are now signed up for 'FIXME: event title'</h3>
-    <p>We have created this page to help you with your fundraising.
-      Please take a few minutes to complete a couple of details below, you will need to add a fundraising
-      target to give you something to aim for (aim high!) and write a little bit about yourself to encourage
-      people to help you reach that target.
-      If you want to do this event as a team or in memory of a loved one you can set that up below as well.
-    </p>
-  </div>
+
+  {if !empty($pcpStatus)}
+  {foreach from=$pcpStatus item=pstatus}
+    <div class="{$pstatus.type} pcp-message">
+      <h3>{$pstatus.title}</h3>
+      <p>{$pstatus.text}</p>
+    </div>
+  {/foreach}
   {/if}
 
   <div class="pcp-body">
@@ -44,48 +45,38 @@
           Totaliser
         </div>
         <!-- BIO section -->
-        <div id="pcp_intro_text" class="intro-text crm-pcp-inline-edit" data-edit-params='{ldelim}"cid": "{$contactId}", "class_name": "CRM_Contact_Form_Inline_ContactInfo"{rdelim}'>{$pcpinfo.intro_text}</div>
-        <div id="pcp_page_text" class="page-text crm-pcp-inline-edit">{$pcpinfo.page_text}</div>
+        <div id="pcp_intro_text" {if $is_edit_page}class="intro-text crm-pcp-inline-edit" data-edit-params='{ldelim}"cid": "{$contactId}", "class_name": "CRM_Contact_Form_Inline_ContactInfo"{rdelim}' {else} class="intro-text" {/if}>{$pcpinfo.intro_text}</div>
+        <div id="pcp_page_text" class="page-text {if $is_edit_page}crm-pcp-inline-edit{/if}">{$pcpinfo.page_text}</div>
         <!-- BIO section ends -->
         <div class="team-section">
-          {assign var="team_pcp_id" value=$pcpinfo.team_pcp_id}
           {if $pcpinfo.team_pcp_id}
             <div class="avatar">
-              {if $teamProfilePic}
-                <img width="75" height="75" src="{$teamProfilePic}">
-              {/if}
+              <img width="75" height="75" src="{$teamPcpInfo.image_url}">
             </div>
-            <span class="team-name"><a href='{crmURL p="civicrm/pcp/manage" q="id=$team_pcp_id"}'>{$teamPcpInfo.title}</a></span>
-            <span class="team-text">{$teamPcpInfo.intro_text}</span>
-          {elseif $isa_team_page}
-            {if $no_donations} {* if $no-donations *}
-              <div class="invite-team-text">Invite people to the team</div>
-              <div class="invite-team-buttons">
-                <a id="invite-team-btn" class="button crm-pcp-inline-edit-team" href="{$inviteTeamURl}">{ts}Invite Team Members{/ts}</a>
+            <div class="team-info">
+              <h3><a href="{crmURL p="civicrm/pcp/manage" q="id=`$pcpinfo.team_pcp_id`"}">{$teamPcpInfo.title}</a></h3>
+              <p>{$teamPcpInfo.intro_text}</p>
+            </div>
+            <div class="team-stats">
+              <div class="raised-total">
+                <span class="amount">{$teamPcpInfo.amount_raised|crmMoney:$teamPcpInfo.currency}</span>
+                <div class="raised"><span class="text">Raised so far</span></div>
               </div>
-            {else}
-              <span class="top-fund-text">Top team fundraisers.</span>
-              <div class="top-fund-raisers">
-                {if $topTeamDonationInfo}
-                  {foreach from=$topTeamDonationInfo item=teamDonations}
-                    <span class="fname">{$teamDonations.display_name}</span>
-                  {/foreach}
-                {else}
-                  <span class="fname">No Donations recorded yet..</span>
-                {/if}
+              <div class="target">
+                <span class="text">Of target</span>
+                <div id="pcp_goal_amount" class="amount">{$teamPcpInfo.goal_amount|crmMoney:$teamPcpInfo.currency}</div>
               </div>
-              <div class="top-fund-buttons">
-                <a class="button crm-pcp-inline-edit-team" href="{$createTeamUrl}">{ts}Invite to Team{/ts}</a>
-                <a class="button crm-pcp-inline-edit-team" href="{$joinTeamUrl}">{ts}See all Team{/ts}</a>
-              </div>
-            {/if}
+            </div>
+          {elseif $pcpinfo.is_teampage}
+            <!-- <div class="invite-team-text">Invite people to the team</div> -->
+            <div class="team-buttons">
+              <a id="invite-team-btn" class="pcp-button pcp-btn-red crm-pcp-inline-edit-team" href="{$inviteTeamURl}">{ts}Invite Team Members{/ts}</a>
+              <a id="leave-team-btn" class="pcp-button pcp-btn-red" href="javascript:void(0)" onclick="leaveTeam({$pcpinfo.id}, {$userId})">{ts}Leave Team{/ts}</a>
+            </div>
           {else}
-            <span class="no-team-text">Fundraise more, fundraise as a team Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius. Vestibulum viverra mi dictum odio scelerisque semper. Morbi</span>
-            <p><strong> Fundraise more, fundraise as a team </strong></p><br>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius. Vestibulum viverra mi dictum odio scelerisque semper. Morbi</span>
             <div class="no-team-buttons">
-              <a id="create-team-btn" class="button crm-pcp-inline-edit-team" href="{$createTeamUrl}">{ts}Create a Team{/ts}</a>
-              <a id="join-team-btn" class="button crm-pcp-inline-edit-team" href="{$joinTeamUrl}">{ts}Join a Team{/ts}</a>
+              <a id="create-team-btn" class="pcp-button pcp-btn-red crm-pcp-inline-edit-team" href="{$createTeamUrl}">{ts}Create a Team{/ts}</a>
+              <a id="join-team-btn" class="pcp-button pcp-btn-red crm-pcp-inline-edit-team" href="{$joinTeamUrl}">{ts}Join a Team{/ts}</a>
             </div>
           {/if}
           <div class="clear"></div>
@@ -94,7 +85,7 @@
       <div class="givetoname">
         <div class="colheader">
           <div class="btn-donate">
-            <a href="/dfp/donate/59772/nojs"><span id="donate_link_text" class="crm-pcp-inline-btn-edit">Donate</span></a>
+            <a href="{$pcpinfo.donate_url}"><span id="donate_link_text" {if $is_edit_page}class="crm-pcp-inline-btn-edit"{/if}>Donate</span></a>
           </div>
         </div>
         <div class="rank">
@@ -109,78 +100,108 @@
       <div class="clear"></div>
     </div>
 
-    <div class="member-block">
-      <div class="mb-header">
-        Team Members
-      </div>
-      <div class="mb-body">
-        <div class="mb-row">
-          <div class="mb-body-row action">
-            Remove link(admin)
-          </div>
-          <div class="mb-body-row name">
-            Name1 Last1
-          </div>
-          <div class="mb-body-row progress">
-            34 Donations
-          </div>
-          <div class="mb-body-row raised">
-            £1,072.00
-          </div>
-          <div class="mb-body-row donate">
-            <input type="button" name="donate" value="donate"/>
-          </div>
-          <div class="clear"></div>
+    {if $pcpinfo.is_teampage}
+      <div id="member-req-block" class="member-req-block">
+        <div class="mem-header">
+          Team Member Requests
         </div>
-        <div class="mb-row">
-          <div class="mb-body-row action">
-            Remove link(admin)
+        <div class="mem-body">
+          {foreach from=$teamMemberRequestInfo item=memberInfo}
+          <div class="mem-row">
+            <!--
+            <div class="mem-body-row action">
+              Remove link(admin)
+            </div> -->
+            <div class="mem-body-row avatar">
+              <img width="35" height="35" src="{$memberInfo.image_url}">
+            </div>
+            <div class="mem-body-row name">
+              {$memberInfo.display_name} 
+              {if $memberInfo.is_team_admin}
+                <br>
+                <small> ( Team Admin ) </small>
+              {/if}
+            </div>
+            <div class="mem-body-row progress">
+              {$memberInfo.donations_count} Donations
+            </div>
+            <div class="mem-body-row raised">
+              {$memberInfo.amount_raised|crmMoney}
+            </div>
+            <div class="mem-body-row donate">
+              <a class="pcp-button pcp-btn-green" href="javascript:void(0)" onclick="approveTeamMember('{$memberInfo.relationship_id}','{$memberInfo.pcp_id}','{$memberInfo.team_pcp_id}');return false;">{ts}Approve{/ts}</a>
+              <a class="pcp-button pcp-btn-red" href="" onclick="declineTeamMember('{$memberInfo.relationship_id}');return false;">{ts}Decline{/ts}</a>
+            </div>
+            <div class="clear"></div>
           </div>
-          <div class="mb-body-row name">
-            Name2 Last2
-          </div>
-          <div class="mb-body-row progress">
-            64 Donations
-          </div>
-          <div class="mb-body-row raised">
-            £2,072.00
-          </div>
-          <div class="mb-body-row donate">
-            <input type="button" name="donate" value="donate"/>
-          </div>
+          {/foreach}
           <div class="clear"></div>
-        </div>
-        <div class="mb-row">
-          <div class="mb-body-row action">
-            Remove link(admin)
-          </div>
-          <div class="mb-body-row name">
-            Name3 Last3
-          </div>
-          <div class="mb-body-row progress">
-            24 Donations
-          </div>
-          <div class="mb-body-row raised">
-            £1,072.00
-          </div>
-          <div class="mb-body-row donate">
-            <input type="button" name="donate" value="donate"/>
-          </div>
-          <div class="clear"></div>
-        </div>
+        </div><!-- mem-body ends -->
         <div class="clear"></div>
-      </div><!-- mb-body ends -->
-      <div class="clear"></div>
-    </div>
+      </div><!-- member-request block ends-->
+
+      <div class="member-block">
+        <div class="mem-header">
+          Team Members
+        </div>
+        <div class="mem-body">
+          {foreach from=$teamMemberInfo item=memberInfo}
+          <div class="mem-row">
+            <!--
+            <div class="mem-body-row action">
+              Remove link(admin)
+            </div> -->
+            <div class="mem-body-row avatar">
+              <img width="35" height="35" src="{$memberInfo.image_url}">
+            </div>
+            <div class="mem-body-row name">
+              {$memberInfo.display_name} 
+              {if $memberInfo.is_team_admin}
+                <br>
+                <small> ( Team Admin ) </small>
+              {/if}
+            </div>
+            <div class="mem-body-row pcp-progress">
+              <span>{$memberInfo.donations_count} Donations</span>
+              <div class="pcp-bar">
+                <div class="pcp-bar-progress" style="width: {$memberInfo.percentage};">
+                </div>
+              </div>
+            </div>
+            <div class="mem-body-row raised">
+              {$memberInfo.amount_raised|crmMoney}
+            </div>
+            <div class="mem-body-row donate">
+              <a class="btn-donate-small" href="{$memberInfo.donate_url}">{ts}Donate{/ts}</a>
+            </div>
+            <div class="clear"></div>
+          </div>
+          {/foreach}
+          <div class="clear"></div>
+        </div><!-- mem-body ends -->
+        <div class="clear"></div>
+      </div><!-- member-block ends-->
+    {/if}
   </div>
 
   <div class="clear"></div>
+</div>
+{* FIXME style display none should take care of css*}
+<div class="crm-pcp-alert-leave-team" style="display:none;">
+  <p> Are you sure, want to leave from this team ?</p>
+</div>
+<div class="crm-pcp-alert-approve-request" style="display:none;">
+  <p> Would you llike to Approve this request ?</p>
+</div>
+<div class="crm-pcp-alert-decline-request" style="display:none;">
+  <p> Are you sure, want to Decline this request ?</p>
 </div>
 
 {literal}
 <script type="text/javascript">
 CRM.$(function($) {
   var apiUrl = {/literal}"{crmURL p='civicrm/ajax/rest' h=0 q='className=CRM_Pcpteams_Page_AJAX&fnName=inlineEditorAjax&snippet=6&json=1'}";{literal}
+  var isEditPage = {/literal}"{$is_edit_page}";{literal}
   var editparams = {
     type      : 'text',
     //cssclass  : 'crm-form-textarea',
@@ -205,7 +226,9 @@ CRM.$(function($) {
     $(this).css("background", "#e0001a");
     $(this).css("border", "none");
   }
-  $('.crm-pcp-inline-btn-edit').editable(apiUrl, editparams);
+  if(isEditPage){
+    $('.crm-pcp-inline-btn-edit').editable(apiUrl, editparams);
+  }
   $('.crm-pcp-inline-edit').mouseover(function(){
     $(this).css("background", "#E5DEDE");
     $(this).css("border", "2px dashed #c4c4c4");
@@ -224,33 +247,60 @@ CRM.$(function($) {
     $(this).css("background", "#e0001a");
     $(this).css("border", "none");
   });
+
+  $('.member-req-block').hide();
+  $('#showMemberRequests').on('click', function() {
+    $('.member-req-block').show('slow');
+    $(this).parent().parent().hide();
+  });
   
   //inline Create and Join Team 
-  cj('.crm-pcp-inline-edit-team').on('click', function(ev){
+  $('.crm-pcp-inline-edit-team').on('click', function(ev){
     ev.preventDefault();
     var url = cj(this).attr('href');
     var id = cj(this).attr('id');
     var title = 'Join Team';
-    if(id = 'create-team-btn'){
+    var status = 'Request sent to the team successfully'; //FIXME : need to set the proper status message
+    if (id == 'create-team-btn') {
       title = 'Create Team';
+      status = 'Successfully created team'; //FIXME : need to set the proper status message
     }
-    if(id = 'invite-team-btn'){
+    if (id == 'invite-team-btn') {
       title = 'Invite Team';
+      status = 'Successfully Invite to team'; //FIXME : need to set the proper status message
     }
-    if(url){
-      CRM.loadForm(url, {dialog: {width: 650, height: 'auto', title: title}
-                  }).on('crmFormSuccess', function(e, data) {});
+    console.log(title);
+    if (url) {
+      CRM.loadForm(url, {
+        dialog: {width: 650, height: 'auto', title: title}
+      }).on('crmFormSuccess', function(e, data) {
+        CRM.status(status);
+        $(document).ajaxStop(function() { 
+          location.reload(true); 
+        });
+      });
     }// end if 
   });// end on click
   
   //inline Profile Image 
-  cj('.crm-pcp-inline-edit-pic').on('click', function(ev){
-    var url = cj(this).attr('href');
-    if(url){
-      CRM.loadForm(url, {dialog: {width: 500, height: 'auto'}
-                  }).on('crmFormSuccess', function(e, data) {});
-    }// end if 
-  });// end on click
+  if (isEditPage) {
+    $('.crm-pcp-inline-edit-pic').on('click', function(ev){
+      var url = $(this).attr('href');
+      var fileid = $(this).attr('id');
+      if(fileid){
+        url = url + '&fileid=' + fileid;
+      }
+      if (url) {
+        CRM.loadForm(url, {
+          dialog: {width: 500, height: 'auto'}
+        }).on('crmFormSuccess', function(e, data) {
+          $(document).ajaxStop(function() { 
+            location.reload(true); 
+          });
+        });
+      }// end if 
+    });// end on click
+  }
   $('.crm-pcp-inline-edit-pic').mouseover(function(){
     $(this).css("background", "#E5DEDE");
     $(this).css("border", "2px dashed #c4c4c4");
@@ -260,8 +310,115 @@ CRM.$(function($) {
     $(this).css("background", "#F7F6F6");
     $(this).css("border", "none");
   });
-  
-  
+
+  var circleVar = {/literal}{$pcpinfo.percentage};{literal}
+  $('.circle').circleProgress({
+    value: circleVar/100,
+    size: 130,
+    thickness: 15,
+    lineCap: "round",
+    fill: {
+      gradient: ["#FF0000", "#e0001a"]
+    },
+  }).on('circle-animation-progress', function(event, progress) {
+    $(this).find('strong').html(parseInt(circleVar) + '<i>%</i>');
+  });
 });
+function approveTeamMember(entityId, pcpId, teampcpId){
+    cj(".crm-pcp-alert-approve-request").show();
+    cj(".crm-pcp-alert-approve-request").dialog({
+        title: "Approve Request",
+        modal: true,
+        resizable: true,
+        bgiframe: true,
+        overlay: {
+          opacity: 0.5,
+          background: "black"
+        },
+        buttons: {
+          "Yes": function() {
+              var dataUrl = {/literal}"{crmURL p='civicrm/ajax/rest' h=0 q='snippet=4&className=CRM_Pcpteams_Page_AJAX&fnName=approveTeamMember' }"{literal};
+              cj.ajax({ 
+                 url     : dataUrl,
+                 type    : 'post',
+                 data    : {entity_id : entityId, pcp_id : pcpId, team_pcp_id: teampcpId },
+                 success : function( data ) {
+                  CRM.status(ts('Approved'));
+                  cj(document).ajaxStop(function() { location.reload(true); });
+                 }
+              });
+            cj(this).dialog("destroy");
+          },
+          "No" : function() {
+            cj(this).dialog("destroy");
+          }
+        }
+    });
+}
+function declineTeamMember(entityId){
+    cj(".crm-pcp-alert-decline-request").show();
+    cj(".crm-pcp-alert-decline-request").dialog({
+        title: "Decline Request",
+        modal: true,
+        resizable: true,
+        bgiframe: true,
+        overlay: {
+          opacity: 0.5,
+          background: "black"
+        },
+        buttons: {
+          "Yes": function() {
+              var dataUrl = {/literal}"{crmURL p='civicrm/ajax/rest' h=0 q='snippet=4&className=CRM_Pcpteams_Page_AJAX&fnName=declineTeamMember' }"{literal};
+              cj.ajax({ 
+                 url     : dataUrl,
+                 type    : 'post',
+                 data    : {entity_id : entityId},
+                 success : function( data ) {
+                  CRM.status(ts('Declined'));
+                  cj(document).ajaxStop(function() { location.reload(true); });
+                 }
+              });
+            cj(this).dialog("destroy");
+          },
+          "No" : function() {
+            cj(this).dialog("destroy");
+          }
+        }
+    });
+}
+function leaveTeam(teampcpId, userId){
+    cj(".crm-pcp-alert-leave-team").show();
+    cj(".crm-pcp-alert-leave-team").dialog({
+        title: "Leave Team",
+        modal: true,
+        resizable: true,
+        bgiframe: true,
+        overlay: {
+          opacity: 0.5,
+          background: "black"
+        },
+        buttons: {
+          "Yes": function() {
+             var dataUrl = {/literal}"{crmURL p='civicrm/ajax/rest' h=0 q='snippet=4&className=CRM_Pcpteams_Page_AJAX&fnName=leaveTeam' }";{literal}
+             var redirectUrl = {/literal}"{crmURL p='civicrm/pcp/dashboard' h=0 q='reset=1'}";{literal}
+             cj.ajax({ 
+                url     : dataUrl,
+                type    : 'post',
+                data    : {user_id : userId, team_pcp_id : teampcpId},
+                success : function( data ) {
+                  cj(document).ajaxStop(function() { 
+                    location.href = redirectUrl; 
+                  });
+                }
+             });
+            cj(this).dialog("destroy");
+          },
+          "No" : function() {
+            cj(this).dialog("destroy");
+          }
+        }
+    });
+ 
+}
 </script>
 {/literal}
