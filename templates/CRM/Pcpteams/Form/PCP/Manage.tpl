@@ -10,9 +10,9 @@
         <div id="pcp_title" class="title {if $is_edit_page}crm-pcp-inline-edit{/if}">{$pcpinfo.title}</div>
       <div class="clear"></div>
     </div>
-    <div class="pcp-progress">
+    <div id="pcp-progress" class="pcp-progress">
+      <span class="stat-num"><strong>{$pcpinfo.percentage}<i>%</i></strong></span>
       <div class="circle">
-        <span class="stat-num"><strong>{$pcpinfo.percentage}</strong></span>
       </div>
     </div>
     <div class="stats">
@@ -107,7 +107,7 @@
         </div>
         <div class="mem-body">
           {foreach from=$teamMemberRequestInfo item=memberInfo}
-          <div class="mem-row">
+          <div class="mem-row" id="member_{$memberInfo.pcp_id}">
             <!--
             <div class="mem-body-row action">
               Remove link(admin)
@@ -130,7 +130,7 @@
             </div>
             <div class="mem-body-row donate">
               <a class="pcp-button pcp-btn-green" href="javascript:void(0)" onclick="approveTeamMember('{$memberInfo.relationship_id}','{$memberInfo.pcp_id}','{$memberInfo.team_pcp_id}');return false;">{ts}Approve{/ts}</a>
-              <a class="pcp-button pcp-btn-red" href="" onclick="declineTeamMember('{$memberInfo.relationship_id}');return false;">{ts}Decline{/ts}</a>
+              <a class="pcp-button pcp-btn-red" href="javascript:void(0)" onclick="declineTeamMember('{$memberInfo.relationship_id}', '{$memberInfo.pcp_id}');return false;">{ts}Decline{/ts}</a>
             </div>
             <div class="clear"></div>
           </div>
@@ -164,7 +164,7 @@
             <div class="mem-body-row pcp-progress">
               <span>{$memberInfo.donations_count} Donations</span>
               <div class="pcp-bar">
-                <div class="pcp-bar-progress" style="width: {$memberInfo.percentage};">
+                <div class="pcp-bar-progress" style="width: {$memberInfo.percentage}%;" title="{$memberInfo.percentage}%">
                 </div>
               </div>
             </div>
@@ -259,24 +259,24 @@ CRM.$(function($) {
     ev.preventDefault();
     var url = cj(this).attr('href');
     var id = cj(this).attr('id');
+    var redirectUrl = window.location.href; //FIXME: need to make sure with DS, can use this method
     var title = 'Join Team';
-    var status = 'Request sent to the team successfully'; //FIXME : need to set the proper status message
+    redirectUrl = redirectUrl + '&op=join';
     if (id == 'create-team-btn') {
       title = 'Create Team';
-      status = 'Successfully created team'; //FIXME : need to set the proper status message
+      redirectUrl = redirectUrl + '&op=create';
     }
     if (id == 'invite-team-btn') {
       title = 'Invite Team';
-      status = 'Successfully Invite to team'; //FIXME : need to set the proper status message
+      redirectUrl = redirectUrl + '&op=invite';
     }
-    console.log(title);
     if (url) {
       CRM.loadForm(url, {
         dialog: {width: 650, height: 'auto', title: title}
       }).on('crmFormSuccess', function(e, data) {
         CRM.status(status);
         $(document).ajaxStop(function() { 
-          location.reload(true); 
+          location.href = redirectUrl; 
         });
       });
     }// end if 
@@ -321,7 +321,11 @@ CRM.$(function($) {
       gradient: ["#FF0000", "#e0001a"]
     },
   }).on('circle-animation-progress', function(event, progress) {
-    $(this).find('strong').html(parseInt(circleVar) + '<i>%</i>');
+    if ((100 * progress) <= circleVar) {
+      $('#pcp-progress').find('strong').html(parseInt(100 * progress) + '<i>%</i>');
+    } else {
+      $('#pcp-progress').find('strong').html(parseInt(circleVar) + '<i>%</i>');
+    }
   });
 });
 function approveTeamMember(entityId, pcpId, teampcpId){
@@ -343,8 +347,8 @@ function approveTeamMember(entityId, pcpId, teampcpId){
                  type    : 'post',
                  data    : {entity_id : entityId, pcp_id : pcpId, team_pcp_id: teampcpId },
                  success : function( data ) {
-                  CRM.status(ts('Approved'));
-                  cj(document).ajaxStop(function() { location.reload(true); });
+                  cj('#member_'+pcpId).remove();
+                  cj('div.member-block > div.mem-body').append(data);
                  }
               });
             cj(this).dialog("destroy");
@@ -355,7 +359,7 @@ function approveTeamMember(entityId, pcpId, teampcpId){
         }
     });
 }
-function declineTeamMember(entityId){
+function declineTeamMember(entityId, pcpId){
     cj(".crm-pcp-alert-decline-request").show();
     cj(".crm-pcp-alert-decline-request").dialog({
         title: "Decline Request",
@@ -369,13 +373,14 @@ function declineTeamMember(entityId){
         buttons: {
           "Yes": function() {
               var dataUrl = {/literal}"{crmURL p='civicrm/ajax/rest' h=0 q='snippet=4&className=CRM_Pcpteams_Page_AJAX&fnName=declineTeamMember' }"{literal};
+              var redirectUrl = window.location.href;
+              redirectUrl = redirectUrl + '&op=decline';
               cj.ajax({ 
                  url     : dataUrl,
                  type    : 'post',
                  data    : {entity_id : entityId},
                  success : function( data ) {
-                  CRM.status(ts('Declined'));
-                  cj(document).ajaxStop(function() { location.reload(true); });
+                  cj('#member_'+pcpId).remove();
                  }
               });
             cj(this).dialog("destroy");

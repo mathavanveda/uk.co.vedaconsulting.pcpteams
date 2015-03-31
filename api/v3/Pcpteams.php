@@ -62,13 +62,30 @@ function civicrm_api3_pcpteams_create($params) {
   // active by default for now
   $params['is_active'] = CRM_Utils_Array::value('is_active', $params, 1);
 
-  $pcpID = CRM_Utils_Array::value('id', $params);
-  $pcp   = CRM_PCP_BAO_PCP::add($params, FALSE);
-
-  if (!$pcpID) {
-    // We 'll need to call create hook. Civi doesn't do it for PCP.  
-    CRM_Utils_Hook::post('create', 'PCP', $pcp->id, $pcp);
+  $pcp = CRM_Pcpteams_BAO_PCP::create($params, FALSE);
+  
+  //Custom Set
+  $customFields = CRM_Core_BAO_CustomField::getFields('PCP', FALSE, FALSE,
+    NULL, NULL, TRUE
+  );
+  $isCustomValueSet = FALSE;
+  foreach ($customFields as $fieldID => $fieldValue) {
+    list($tableName, $columnName, $cgId) = CRM_Core_BAO_CustomField::getTableColumnGroup($fieldID);
+    if (!empty($params[$columnName]) || !empty($params["custom_{$fieldID}"])) {
+      $isCustomValueSet = TRUE;
+      //FIXME: to find out the custom value exists, set -1 as default now
+      $params["custom_{$fieldID}_-1"] = !empty($params[$columnName]) ? $params[$columnName] : $params["custom_{$fieldID}"];
+    }
   }
+  if ($isCustomValueSet) {
+    $params['custom'] = CRM_Core_BAO_CustomField::postProcess($params,
+      $customFields,
+      $pcp->id,
+      'PCP'
+    );
+    CRM_Core_BAO_CustomValueTable::store($params['custom'], 'civicrm_pcp', $pcp->id);
+  }
+  //end custom set
 
   $values = array();
    _civicrm_api3_object_to_array_unique_fields($pcp, $values[$pcp->id]);
@@ -748,7 +765,10 @@ function civicrm_api3_pcpteams_getTeamMembersInfo($params){
   $teamMemberPcpIds   = implode(', ', $teamMemberPcpIds);
   $relTypeAdmin       = CRM_Pcpteams_Constant::C_TEAM_ADMIN_REL_TYPE;
   $adminRelTypeId     = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', $relTypeAdmin, 'id', 'name_a_b');
-
+  $where              = NULL;
+  if (isset($params['contact_id'])) {
+    $where = " AND cp.contact_id = {$params['contact_id']}";
+  }
   $query = "
     SELECT cp.id        as pcp_id
       , cp.page_id      as page_id
@@ -762,7 +782,7 @@ function civicrm_api3_pcpteams_getTeamMembersInfo($params){
     LEFT JOIN civicrm_value_pcp_custom_set cpcs ON (cpcs.entity_id = cp.id)
     LEFT JOIN civicrm_contact cc ON (cc.id = cp.contact_id)
     LEFT JOIN civicrm_relationship cr ON (cr.contact_id_a = cp.contact_id AND cr.is_active)
-    where cp.id IN ( $teamMemberPcpIds )
+    where cp.id IN ( $teamMemberPcpIds ) {$where}
   ";
   $dao = CRM_Core_DAO::executeQuery($query);
   while ($dao->fetch()) {
@@ -1036,9 +1056,11 @@ function _civicrm_api3_pcpteams_getMoreInfo(&$params) {
       $fileId   = $fileInfo['fileID'];
       $imageUrl = CRM_Utils_System::url('civicrm/file',"reset=1&id=$fileId&eid={$pcpId}"); 
     }
-    $pcpBlockId         = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCP', $pcpId, 'pcp_block_id', 'id');
-    $contributionPageId = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCPBlock', $pcpBlockId, 'target_entity_id', 'id');
-    $donateUrl          = CRM_Utils_System::url('civicrm/contribute/transact', 'id='.$contributionPageId.'&pcpId='.$pcpId.'&reset=1');
+    $pcpBlockId = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCP', $pcpId, 'pcp_block_id', 'id');
+    if ($pcpBlockId) {
+      $contributionPageId = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCPBlock', $pcpBlockId, 'target_entity_id', 'id');
+    }
+    $donateUrl  = CRM_Utils_System::url('civicrm/contribute/transact', 'id='.$contributionPageId.'&pcpId='.$pcpId.'&reset=1');
     
     $aContactTypes   = CRM_Contact_BAO_Contact::getContactTypes( $pcpValues['contact_id'] );
     $isTeamPcp       = in_array('Team'      , $aContactTypes) ? TRUE : FALSE;
