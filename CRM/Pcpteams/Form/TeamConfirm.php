@@ -9,8 +9,12 @@ require_once 'CRM/Core/Form.php';
  */
 class CRM_Pcpteams_Form_TeamConfirm extends CRM_Core_Form {
   function preProcess(){
-    $this->assign('teamTitle', $this->get('teamName'));
-    CRM_Utils_System::setTitle(ts('Team Name Available'));
+    $workflow = $this->get('workflowTeam');
+    $teamTitle= $this->get('teamName');
+    
+    $this->assign('teamTitle', $teamTitle);
+    $this->assign('workflow', $workflow);
+    
     $this->_contactID = CRM_Pcpteams_Utils::getloggedInUserId();
     if (!$this->get('page_id')) {
       CRM_Core_Error::fatal(ts("Can't determine pcp id."));
@@ -42,7 +46,7 @@ class CRM_Pcpteams_Form_TeamConfirm extends CRM_Core_Form {
       TRUE
     );
     $email->freeze();
-    $this->addWysiwyg('suggested_message', ts('Your Message'), CRM_Core_DAO::getAttribute('CRM_Friend_DAO_Friend', 'suggested_message'));
+    // $this->addWysiwyg('suggested_message', ts('Your Message'), CRM_Core_DAO::getAttribute('CRM_Friend_DAO_Friend', 'suggested_message'));
     $friend    = array();
     $mailLimit = CRM_Pcpteams_Constant::C_INVITE_MAIL_LIMIT;
    
@@ -89,15 +93,58 @@ class CRM_Pcpteams_Form_TeamConfirm extends CRM_Core_Form {
     //return TRUE;
     $values = $this->controller->exportValues($this->_name); 
     // Find the msg_tpl ID of sample invite template
-    $result = civicrm_api3('MessageTemplate', 'get', array( 'sequential' => 1, 'version'=> 3, 'msg_title' => "Sample Team Invite Template",));
+    $msgTplId  = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_MessageTemplate', CRM_Pcpteams_Constant::C_INVITE_TEAM_MSG_TPL, 'id', 'msg_title');
     $teampcpId = CRM_Pcpteams_Utils::getPcpIdByContactAndEvent($this->get('component_page_id'), $this->get('teamContactID'));
-    if(!civicrm_error($result) && $result['id']) {
+
+    if( $msgTplId && !empty($values)) {
+      
       // Send Invitation emails
-      CRM_Pcpteams_Utils::sendInviteEmail($result['id'], $this->_contactID, $values, $teampcpId);
+      $pcpDetails = civicrm_api('pcpteams', 'get', array('version' => 3, 'sequential' => 1, 'pcp_id' => $this->get('page_id')));
+      list($userName, $userEmail) = CRM_Contact_BAO_Contact::getContactDetails($this->_contactID);
+      $values['tplParams'] = array(
+        'eventName' => $pcpDetails['values'][0]['page_title'],
+        'userName'  => $userName,
+        'teamName'  => $this->get('teamName'),
+        'pageURL'   => CRM_Utils_System::url('civicrm/pcp/support', "reset=1&pageId={$this->get('component_page_id')}&component=event&tpId={$this->get('page_id')}", TRUE, NULL, FALSE, TRUE),
+      );
+      // As team contact id is set in the team join post process, team contact id is not available in this form if you are coming from manage page
+      $teamContactId = $this->get('teamContactID');
+      if (empty($teamContactId)) {
+        $teamContactId = $pcpDetails['values'][0]['contact_id'];
+      }
+      // Create Team Invite activity
+      $actParams = array(
+        'assignee_contact_id'=>   $teamContactId,
+      );
+      $checkAdminParams = array(
+        'version' => 3,
+        'user_id' => $this->_contactID,
+        'team_contact_id' => $teamContactId,
+      );
+      $chkTeamAdmin= civicrm_api('Pcpteams', 'checkTeamAdmin', $checkAdminParams);
+      $isTeamAdmin = $chkTeamAdmin['is_team_admin'];
+        
+      $teamInviteActivityType = $isTeamAdmin ? CRM_Pcpteams_Constant::C_AT_INVITATION_FROM_ADMIN : CRM_Pcpteams_Constant::C_AT_INVITATION_FROM_MEMBER;
+      $activity = CRM_Pcpteams_Utils::createPcpActivity($actParams, $teamInviteActivityType);
+      
+      $result = CRM_Pcpteams_Utils::sendInviteEmail($msgTplId, $this->_contactID, $values, $teampcpId, $activity['id']);
+      if ($result) {
+        if ($_GET['snippet']) {
+          // from pcp edit screen
+          CRM_Core_Session::setStatus(ts('Invitation request(s) has been sent'), ts('Invite Team')); 
+        } else {
+          // from workflow (create team)
+          CRM_Core_Session::setStatus(ts('Your team has been created. We have emailed your team mates asking them to join you. You will receive and email when each of them accepts your invite Invitation request(s) has been sent'), ts('Team Join Request(s) Sent')); 
+        }
+      } else {
+        if ($_GET['snippet']) {
+          CRM_Core_Session::setStatus(ts('No invitation request was sent.'), ts('No Invites')); 
+        } else {
+          // from workflow (create team)
+          CRM_Core_Session::setStatus(ts('Your team has been created. You can invite members from your team page.'), ts('Invite Members From Your Team Page')); 
+        }
+      }
     }
-    $contactDisplayName = CRM_Contact_BAO_Contact::displayName($this->_contactID);
-    // Create Team Invite activity
-    CRM_Pcpteams_Utils::createPcpActivity(array('source' => $this->_contactID, 'target' => $this->get('teamContactID')), CRM_Pcpteams_Constant::C_CF_TEAM_INVITE, 'Invited to Join Team '.$this->get('teamName'). 'by '.$contactDisplayName, 'PCP Team Invite');
   }
 
   /**

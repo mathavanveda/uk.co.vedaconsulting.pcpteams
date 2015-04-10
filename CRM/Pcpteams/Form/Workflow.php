@@ -11,6 +11,10 @@ class CRM_Pcpteams_Form_Workflow extends CRM_Core_Form {
 
   function preProcess() {
     if (!CRM_Utils_Array::value('pageId', $_GET)) {
+      if ($this->get('pcpComponent') == 'event' && $this->get('component_page_id')) {
+        $eventTitle = CRM_Core_DAO::getFieldValue('CRM_Event_BAO_Event', $this->get('component_page_id'), 'title');
+        CRM_Utils_System::setTitle($eventTitle);
+      }
       // already initialized
       return TRUE;
     }
@@ -72,12 +76,21 @@ class CRM_Pcpteams_Form_Workflow extends CRM_Core_Form {
     $this->set('page_id', $this->_id);
     $this->set('component_page_id', $this->_pageId);
     $this->set('pcpComponent', $this->_component);
+    if ($this->_tpId) {
+      // users returning after event registration may no longer have tpId in
+      // controller session, and therefore we need to set it in php session
+      $session->set('pcpteams_tpid', $this->_tpId);
+    }
+    if ($this->get('pcpComponent') == 'event' && $this->get('component_page_id')) {
+      $eventTitle = CRM_Core_DAO::getFieldValue('CRM_Event_BAO_Event', $this->get('component_page_id'), 'title');
+      CRM_Utils_System::setTitle($eventTitle);
+    }
 
     // we do not want to display recently viewed items, so turn off
     $this->assign('displayRecent', FALSE);
 
     $this->assign('pcpComponent', $this->_component);
 
-    $session->pushUserContext(CRM_Utils_System::url('civicrm/pcp/dashboard', 'reset=1'));
+    $session->pushUserContext(CRM_Utils_System::url('civicrm/pcp/manage', 'id='.$this->get('page_id')));
   }
 }

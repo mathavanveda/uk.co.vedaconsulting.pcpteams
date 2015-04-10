@@ -12,7 +12,6 @@ class CRM_Pcpteams_Form_TributeJoin extends CRM_Core_Form {
     if (!$this->get('page_id')) {
       CRM_Core_Error::fatal(ts("Can't determine pcp id."));
     }
-    CRM_Utils_System::setTitle(ts('Tribute Contact'));
     
     $selectedValue = $this->get('workflowTribute');
     if( $selectedValue == 2){
@@ -75,9 +74,12 @@ class CRM_Pcpteams_Form_TributeJoin extends CRM_Core_Form {
       $result = civicrm_api3('CustomValue', 'create', $tributeContatparams);
       if(!civicrm_error($result)){
         $tributeName = CRM_Contact_BAO_Contact::displayName($tributeId);
-        $userId      = CRM_Pcpteams_Utils::getloggedInUserId();
         // Tribute Join: create activity
-        CRM_Pcpteams_Utils::createPcpActivity(array('source' => $userId, 'target' => $tributeId), CRM_Pcpteams_Constant::C_CF_TRIBUTE_JOIN, 'Joined to Tribute '.$this->_tributeReason.'of '.$tributeName, 'PCP Tribute Join');
+        $actParams = array(
+          'target_contact_id' => $tributeId,
+          'reason'            => $this->_tributeReason
+        ); 
+        CRM_Pcpteams_Utils::createPcpActivity($actParams, CRM_Pcpteams_Constant::C_AT_TRIBUTE_JOIN);
         CRM_Core_Session::setStatus(ts("Successfully added to {$this->_tributeReason} of {$tributeName}"), '', 'success');
       }      
     } 

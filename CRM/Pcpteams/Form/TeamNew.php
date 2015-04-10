@@ -37,7 +37,7 @@ class CRM_Pcpteams_Form_TeamNew {
         'isDefault' => TRUE,
       ),
     ));
-    $groupURL = CRM_Utils_System::url('civicrm/pcp/page', 'reset=1');
+    $groupURL = CRM_Utils_System::url('civicrm/pcp/support', "code=cpfgq&qfKey={$form->controller->_key}");
     $form->assign('skipURL', $groupURL);
 
     // export form elements
@@ -75,7 +75,7 @@ class CRM_Pcpteams_Form_TeamNew {
     // Create/Update custom record with team pcp id and create relationship with user as Team Admin
     if($teamPcpId) {
       $userId = CRM_Pcpteams_Utils::getloggedInUserId();
-      CRM_Pcpteams_Utils::checkORCreateTeamRelationship($userId, $createTeam['id'], $custom = array(), TRUE, 'create');
+      CRM_Pcpteams_Utils::createTeamRelationship($userId, $createTeam['id'], $custom = array(), 'create');
       $teamPcpCfId = CRM_Pcpteams_Utils::getTeamPcpCustomFieldId();
         $params = array(
           'version'   => 3,
@@ -85,7 +85,11 @@ class CRM_Pcpteams_Form_TeamNew {
       $result = civicrm_api3('CustomValue', 'create', $params);
       $form->set('teamName', $orgName);
       $form->set('teamContactID', $createTeam['id']);
-      CRM_Pcpteams_Utils::createPcpActivity(array('source' => $userId, 'target' => $createTeam['id']), CRM_Pcpteams_Constant::C_CF_TEAM_CREATE, 'Team is created'.$orgName, 'New Team Creation');
+      $actParams = array(
+        'target_contact_id' => $createTeam['id']
+      );        
+      CRM_Pcpteams_Utils::createPcpActivity($actParams, CRM_Pcpteams_Constant::C_AT_TEAM_CREATE);
+      CRM_Core_Session::setStatus(ts("Your Team %1 has been created, you can invite members from your team page.", array(1 => $orgName)), ts('New Team Created'));
     }
     else{
       CRM_Core_Session::setStatus(ts("Failed to Create Team \"{$orgName}\" ..."));

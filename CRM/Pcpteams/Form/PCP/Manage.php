@@ -39,30 +39,35 @@ class CRM_Pcpteams_Form_PCP_Manage extends CRM_Core_Form {
     //FIXME: proper status message
     switch ($opBtn) {
       case 'join':
-        $statusTitle = "Join Team Request";
-        $statusText  = 'Request has been sent to team successfully...';
+        $statusTitle = "Team Request Sent";
+        $statusText  = 'A notification has been sent to the team. Once approved, team should be visible on your page.';
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;
       case 'create':
-        $statusTitle = "Create Team";
-        $statusText  = "That's Great., You have successfully created the Team";
+        $statusTitle = "New Team Created";
+        $statusText  = "That's Great, You have successfully created the Team";
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;
       case 'invite':
         $statusTitle = "Invite Team";
-        $statusText  = "Invitation has sent successfully..";
+        $statusText  = "Invitation request(s) has been sent.";
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;
       case 'approve':
-        $statusTitle = "Approve Request";
-        $statusText  = "You have Approved the Team Request";
+        $statusTitle = "Team Member Request Approved";
+        $statusText  = "Team member request has been approved.";
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;
       case 'decline':
-        $statusTitle = "Decline Request";
-        $statusText  = "You have Declined the Team Request";
+        $statusTitle = "Team Member Request Declined";
+        $statusText  = "Team member request has been declined.";
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;
+      case 'pending':
+        $statusTitle = "Pending Request";
+        $statusText  = "Pending Request has been cancelled.";
+        $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
+        break;        
       default:
         break;
     }
@@ -75,6 +80,14 @@ class CRM_Pcpteams_Form_PCP_Manage extends CRM_Core_Form {
       $teamPcpInfo = self::getPcpDetails($pcpDetails['team_pcp_id']);
     }
     $this->assign('teamPcpInfo', $teamPcpInfo);
+
+    $pendingApprovalInfo = array();
+    if (isset($pcpDetails['pending_team_pcp_id'])) {
+      $pendingApprovalInfo = self::getPcpDetails($pcpDetails['pending_team_pcp_id']);
+      //relationship Id., to withdraw pending request
+      $pendingApprovalInfo['relationship_id'] = $pcpDetails['pending_team_relationship_id'];
+    }
+    $this->assign('pendingApprovalInfo', $pendingApprovalInfo);
     
     //Fundraising Rank    
     $aRankResult = civicrm_api('pcpteams', 'getRank', array(
@@ -117,6 +130,7 @@ class CRM_Pcpteams_Form_PCP_Manage extends CRM_Core_Form {
         'team_pcp_id' => $pcpId,
       ));
       $this->assign('teamMemberRequestInfo', isset($teamMemberRequestInfo['values']) ? $teamMemberRequestInfo['values'] : NULL);
+      $this->assign('teamMemberRequestCount', $teamMemberRequestInfo['count']);
       if (!empty($teamMemberRequestInfo['values']) && $this->_isEditPermission) {
         $statusTitle = "New member request";
         $statusText  = 'You have ' . count($teamMemberRequestInfo['values']) . ' new member request(s). Click <a id="showMemberRequests" class="pcp-button pcp-btn-red" href="#member-req-block">here</a> to manage them.';
@@ -144,6 +158,16 @@ class CRM_Pcpteams_Form_PCP_Manage extends CRM_Core_Form {
     $this->assign('createTeamUrl' , $createTeamURl);
     $this->assign('joinTeamUrl'   , $joinTeamURl);
     $this->assign('updateProfPic' , $updateProfPic);
+
+    // catch all status messages generated on pcp edit screen
+    // and display in pcp style. We can use civi's no-pop up style, but for ajax
+    // snippet that doesn't work anyway
+    $allStatus = CRM_Core_Session::singleton()->getStatus(TRUE);
+    if ($allStatus) {
+      foreach ($allStatus as $status) {
+        $this->setPcpStatus($status['text'], $status['title'], 'pcp-info');
+      }
+    }
   }
 
   static function getPcpDetails($pcpId){
@@ -161,7 +185,7 @@ class CRM_Pcpteams_Form_PCP_Manage extends CRM_Core_Form {
     if (civicrm_error($result)) {
       return NULL;
     }
-    return $result['values'][0];
+    return isset($result['values'][0]) ? $result['values'][0] : CRM_Core_DAO::$_nullArray;
   }
 
   function setPcpStatus($text, $title = '', $type = 'alert') {

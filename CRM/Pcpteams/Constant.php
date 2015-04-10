@@ -19,13 +19,25 @@
           C_CONTACTTYPE_IN_MEM    = 'In_Memory',                //  Contact Sub Type - In Memory
           C_CONTACTTYPE_IN_CELEB  = 'In_Celebration',           //  Contact Sub Type - In Celebration
           C_ACTIVITY_TYPE         = 'activity_type',            //  OptionGroupName
-          C_CF_TEAM_CREATE        = 'PCP Team Create',           //  Optionvalue - team create
-          C_CF_TEAM_JOIN          = 'PCP Team Join',             //  Optionvalue - team join
-          C_CF_TEAM_INVITE        = 'PCP Team Invite',           //  Optionvalue - team invite
-          C_CF_GROUP_JOIN         = 'PCP Group Join',             //  Optionvalue - Group Join
-          C_CF_TRIBUTE_JOIN       = 'PCP Tribute Join',           //  Optionvalue - Tribute Join
+          C_AT_TEAM_CREATE        = 'PCP Team Create',          //  Activity Type - team create
+          // C_AT_TEAM_JOIN          = 'PCP Team Join',            //  Activity Type - team join
+          C_AT_TEAM_INVITE        = 'PCP Team Invite',          //  Activity Type - team invite
+          C_AT_GROUP_JOIN         = 'PCP Group Join',           //  Activity Type - Group Join
+          C_AT_TRIBUTE_JOIN       = 'PCP Tribute Join',         //  Activity Type - Tribute Join
+          C_AT_PCP_CREATED        = 'PCP Created',              //  Activity Type - pcp created
+          C_AT_REQ_MADE           = 'PCP Join Team Request Made',
+          C_AT_REQ_AUTHORISED     = 'PCP Member Join Team Request Authorised',
+          C_AT_REQ_DECLINED       = 'PCP Member Join Team Request Rejected',
+          C_AT_INVITATION_FROM_ADMIN       = 'PCP Email invitation to Join Team (from Team Admin)',
+          C_AT_INVITATION_FROM_MEMBER      = 'PCP Email invitation to Join Team (from Team Member)',
+          C_AT_INVITATION_ACCEPTED         = 'PCP Team Invitation Replied and Pending',
+          C_AT_LEAVE_TEAM         = 'PCP Member Left Team',
           C_CONTACT_SUB_TYPE      = 'Team',                     //  Contact Sub Type - Team
           C_INVITE_MAIL_LIMIT     = 5,
+          C_JOIN_REQUEST_MSG_TPL  = 'New member request to join team',
+          C_LEAVE_TEAM_MSG_TPL    = 'Someone has left your team',
+          C_INVITE_TEAM_MSG_TPL   = 'Invitation to join team',
+          C_PERMISSION_MEMBER     = 8,
           C_DEFAULT_PROFILE_PIC   = 'http://vedaconsulting_llr_v1.llrdev.org.uk/custom_civicrm/extensions/uk.co.vedaconsulting.pcpteams/img/avatar.jpeg';
  }
 ?>

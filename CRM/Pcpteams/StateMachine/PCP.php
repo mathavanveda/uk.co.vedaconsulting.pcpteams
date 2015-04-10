@@ -60,11 +60,11 @@ class CRM_Pcpteams_StateMachine_PCP extends CRM_Core_StateMachine {
       'cpfeq'  => 'CRM_Pcpteams_Form_EventQuery',
       'cpfer'  => 'CRM_Pcpteams_Form_EventReact',
       'cpfec'  => 'CRM_Pcpteams_Form_EventConfirm',
+      'cpfere' => 'CRM_Pcpteams_Form_EventRegister',
       'cpftq'  => 'CRM_Pcpteams_Form_TeamQuery',
       'cpftn'  => 'CRM_Pcpteams_Form_TeamReact',
       'cpftc'  => 'CRM_Pcpteams_Form_TeamConfirm',
       'cpftt'  => 'CRM_Pcpteams_Form_TeamThankYou',
-      'cpftw'  => 'CRM_Pcpteams_Form_TeamWelcome',
       'cpfgq'  => 'CRM_Pcpteams_Form_GroupQuery',
       'cpfgj'  => 'CRM_Pcpteams_Form_GroupJoin',
       'cpftrq' => 'CRM_Pcpteams_Form_TributeQuery',
@@ -137,17 +137,23 @@ class CRM_Pcpteams_StateMachine_PCP extends CRM_Core_StateMachine {
     }
 
     // if need jumping to invite page
-    if ($teamPcpId && !$workflowTeam) {
-      $controller->set('workflowTeam', 'invite');
+    if (!$workflowTeam) {
+      if (empty($teamPcpId)) {
+        $teamPcpId = CRM_Core_Session::singleton()->get('pcpteams_tpid');
+      }
+      if ($teamPcpId) {
+        $controller->set('tpId', $teamPcpId);
+        $controller->set('workflowTeam', 'invite');
+      }
     }
 
     // unset pages per workflow
-    if ('invite' == $controller->get('workflowTeam')) { // team invite
-      unset($pages['cpftq']); // unset team query
+    if (in_array($controller->get('workflowTeam'), array('invite', 2))) { // team invite or join
+      unset($pages['cpftc'],$pages['cpftt']);
     }
     if ('skip' == $controller->get('workflowTeam')) {
       // unset all team pages
-      unset($pages['cpftq'],$pages['cpftn'],$pages['cpftc'],$pages['cpftt'],$pages['cpftw']);
+      unset($pages['cpftq'],$pages['cpftn'],$pages['cpftc'],$pages['cpftt']);
     }
     if ('skip' == $controller->get('workflowGroup')) {
       // unset all group pages
@@ -160,7 +166,7 @@ class CRM_Pcpteams_StateMachine_PCP extends CRM_Core_StateMachine {
 
     // if no event or already registered, skip event pages
     if (!$eventId || $controller->get('participantId')) {
-      unset($pages['cpfec']);
+      unset($pages['cpfec'], $pages['cpfere']);
     }
     if ('cpfeq' != $step) {
       unset($pages['cpfeq'], $pages['cpfer']);
@@ -189,7 +195,7 @@ class CRM_Pcpteams_StateMachine_PCP extends CRM_Core_StateMachine {
     }
 
     if (empty($this->_pages)) {
-      CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/pcp/dashboard', 'reset=1'));
+      CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/pcp/manage', 'id='.$controller->get('page_id')));
     }
     $this->addSequentialPages($this->_pages, $action);
   }

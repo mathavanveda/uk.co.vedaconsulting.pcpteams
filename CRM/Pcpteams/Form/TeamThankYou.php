@@ -9,12 +9,26 @@ require_once 'CRM/Core/Form.php';
  */
 class CRM_Pcpteams_Form_TeamThankYou extends CRM_Core_Form {
   function preProcess(){
+    $workflow  = $this->get('workflowTeam');
+    $this->assign('workflow', $workflow);
     $this->assign('teamTitle', $this->get('teamName'));
-    CRM_Utils_System::setTitle(ts('Team setup succesful'));
 
     if (!$this->get('page_id')) {
       CRM_Core_Error::fatal(ts("Can't determine pcp id."));
     }
+
+    $texts = array();
+    if (!$this->get('team_thank_message')) {
+      $allStatus = CRM_Core_Session::singleton()->getStatus(TRUE);
+      if ($allStatus) {
+        foreach ($allStatus as $status) {
+          $texts[] = "<p>{$status['text']}</p>";
+        }
+      }
+      $texts = implode("<br/>", $texts);
+      $this->set('team_thank_message', $texts);
+    }
+    $this->assign("team_thank_message", $this->get('team_thank_message'));
   }
 
   function buildQuickForm() {

@@ -81,23 +81,21 @@ class  CRM_Pcpteams_Utils {
   /**
    * To check the valid relationship is exists., Create If not Found one.
    */
-  static function checkORCreateTeamRelationship($iContactIdA, $iContactIdB, $custom = array(), $checkandCreate = FALSE, $action = 'join' ){
+  static function createTeamRelationship($iContactIdA, $iContactIdB, $custom = array(), $action = 'join' ){
     if(empty($iContactIdA) || empty($iContactIdB)){
       $status = empty($iContactIdB) ? 'Team Contact is Missing' : 'Team Member Contact Id is Missing';
       CRM_Core_Session::setStatus($status);
+      return FALSE;
     }
+
     $teamRelTypeName = CRM_Pcpteams_Constant::C_TEAM_RELATIONSHIP_TYPE;
-    // When a new team is created
     if($action == 'create') {
+      // When a new team is created, we use admin relationship
       $teamRelTypeName = CRM_Pcpteams_Constant::C_TEAM_ADMIN_REL_TYPE;
     } 
-    $relTypeId       = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', $teamRelTypeName, 'id', 'name_a_b');
+    $relTypeId = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', $teamRelTypeName, 'id', 'name_a_b');
 
-    //check the Relationship Type Exists
-    if(empty($relTypeId)){
-      CRM_Core_Session::setStatus( t('Failed To create Relationship. Relationship Type (%1) does not exist.', array('%1' => $teamRelTypeName)) );
-    }else{
-      
+    if ($relTypeId) {
       $aParams = array();
       //check the duplicates
       $aParams = array(
@@ -106,8 +104,10 @@ class  CRM_Pcpteams_Utils {
         'relationship_type_id'  => $relTypeId.'_a_b',
       );
       $bDuplicateFound = CRM_Contact_BAO_Relationship::checkDuplicateRelationship($aParams, $iContactIdA, $iContactIdB);
-
-      if(!$bDuplicateFound && $checkandCreate){
+      if ($bDuplicateFound) {
+        CRM_Core_Session::setStatus(ts('Relationship already exists.'));
+        return FALSE;
+      } else {
         $aParams['contact_id_a'] = $iContactIdA;
         $aParams['contact_id_b'] = $iContactIdB;
         $aParams['relationship_type_id'] = $relTypeId;
@@ -118,11 +118,13 @@ class  CRM_Pcpteams_Utils {
         $createRelationship = civicrm_api3('Relationship', 'create', $aParams);
         if(!civicrm_error($createRelationship)){
           $teamName = self::getContactWithHyperlink($iContactIdB);
-          CRM_Core_Session::setStatus(ts("Team contact has validated and successfully joined as {$teamRelTypeName} {$teamName}"), '', 'success');
+          return TRUE;
         }
       }
+    } else {
+      CRM_Core_Session::setStatus( t('Failed To create Relationship. Relationship Type (%1) does not exist.', array('%1' => $teamRelTypeName)) );
     }
-
+    return FALSE;
   }
   
   static function getcontactIdbyPcpId($id) {
@@ -311,8 +313,19 @@ class  CRM_Pcpteams_Utils {
       )
     );
     if(!civicrm_error($pcpResult) && $pcpResult['id']) {
+      //create activity for pcp created.
+      $ids          = array('target_contact_id' => $pcpContactId);
+      $userId       = self::getloggedInUserId();
+      if ($userId != $pcpContactId) {
+        $ids['source_contact_id'] = $userId;
+      }
+      $activityName = $subject = CRM_Pcpteams_Constant::C_AT_PCP_CREATED;
+      $desc         = 'New PCP has created';
+      self::createPcpActivity($ids, $activityName);
       return $pcpResult['id'];
     }
+    
+    
     return NULL;
   }
   
@@ -342,24 +355,85 @@ class  CRM_Pcpteams_Utils {
     return $activityType['values'][$activityType['id']]['value'];
   }
   
-  static function createPcpActivity( $ids = array(), $activityname, $html , $subject){
-    if(empty($ids)){
+  static function createPcpActivity( $params, $activityname ){
+    if(empty($activityname)){
       return null;
     }
+    
+    if (!isset($params['source_contact_id'])) {
+      $params['source_contact_id'] = self::getloggedInUserId();
+    }
+    
+    $sourceName = CRM_Contact_BAO_Contact::displayName($params['source_contact_id']);
+    
+    if (isset($params['target_contact_id'])) {
+      $targetName = CRM_Contact_BAO_Contact::displayName($params['target_contact_id']);
+    }
+        
+    //to handle to default values, subject and description for the activity type
+    switch ($activityname) {
+      case CRM_Pcpteams_Constant::C_AT_TEAM_CREATE:
+        $subject = 'Team is created';
+        $details = 'Team is created'.$targetName;
+        break;
+      case CRM_Pcpteams_Constant::C_AT_INVITATION_FROM_ADMIN:
+        $sourceName .= ' ( Team Admin )' ;
+        $subject = 'Team Member Invite to Join Team';
+        $details = 'Invited to join team '.$targetName. ' by '.$sourceName;
+        break;
+      case CRM_Pcpteams_Constant::C_AT_INVITATION_FROM_MEMBER:
+        $sourceName .= ' ( Team Member )';
+        $subject = 'Team Member Invite to Join Team';
+        $details = 'Invited to join team '.$targetName. ' by '.$sourceName;
+        break;
+      case CRM_Pcpteams_Constant::C_AT_GROUP_JOIN:
+      $subject = 'Joined to branch';
+        $details = 'Joined to branch '.$targetName;
+        break;
+      case CRM_Pcpteams_Constant::C_AT_TRIBUTE_JOIN:
+        $subject = 'Joined to tribute contact';
+        $details = 'Joined to tribute '.$params['reason'].' of '.$targetName;
+        unset($params['reason']);
+        break;
+      case CRM_Pcpteams_Constant::C_AT_PCP_CREATED:
+        $subject = 'New PCP has created';
+        $details = "New PCP has created";        
+        break;
+      case CRM_Pcpteams_Constant::C_AT_REQ_AUTHORISED:
+        $subject = 'Team request authorised';
+        $details = "Member join team request has authorised";
+        break;
+      case CRM_Pcpteams_Constant::C_AT_REQ_DECLINED:
+        $subject = 'Team request rejected';
+        $details = "Member join team request has declined";
+        break;
+      case CRM_Pcpteams_Constant::C_AT_REQ_MADE:
+        $subject = 'Team Member Requires Authorisation';
+        $details = "Member join team request made by".$sourceName.' to '. $targetName;
+        break;
+      case CRM_Pcpteams_Constant::C_AT_LEAVE_TEAM:
+        $subject = 'PCP member left team';
+        $details = "PCP member left team ". $targetName;
+        break;
+      default:
+        $subject = $activityname;
+        $details = $activityname;
+        break;
+    }
+    
     $activityTypeID = CRM_Pcpteams_Utils::getActivityTypeId($activityname);
+    
     if($activityTypeID) {
       $activityParams = array(
-                              'source_contact_id' => $ids['source'],
-                              'target_contact_id' => $ids['target'],
-                              'activity_type_id' => $activityTypeID,
-                              'subject' => $subject,
-                              'details' => $html,
-                              'activity_date_time' => date( 'YmdHis' ),
-                              'status_id' => 2,
-                              'version' => 3
-                             );
-
-      return civicrm_api( 'activity','create', $activityParams );
+        'activity_type_id'  => $activityTypeID,
+        'subject'           => $subject,
+        'details'           => $details,
+        'activity_date_time'=> date( 'YmdHis' ),
+        'status_id'         => 2, // status completed
+        'version'           => 3,
+      );
+      $activityParams = array_merge($activityParams, $params);
+      return civicrm_api( 'Activity','create', $activityParams );
     }
   }
   
@@ -381,24 +455,34 @@ class  CRM_Pcpteams_Utils {
     }
   }
   
-  static function sendInviteEmail($message_template_id, $contact_id, $emailParams = array(), $teampcpId ) {
+  static function sendInviteEmail($message_template_id, $contact_id, $emailParams = array(), $teampcpId, $activityId ) {
     
     $mailParams = array();
+    $contactParams = array();
+    if (isset($emailParams['tplParams'])) {
+      $mailParams['tplParams'] = $emailParams['tplParams'];
+    }
     //create contact corresponding to each friend
     foreach ($emailParams['friend'] as $key => $details) {
       if ($details["first_name"]) {
-        $contactParams[$key] = array(
-          'first_name' => $details["first_name"],
-          'last_name' => $details["last_name"],
-          'contact_source' => ts('PCP Team Invite'),
-          'email-Primary' => $details["email"],
-        );
-
         $displayName = $details["first_name"] . " " . $details["last_name"];
-        $mailParams['email'][$displayName] = $details["email"];
+        $contactParams[$key] = array(
+          'first_name'     => $details["first_name"],
+          'last_name'      => $details["last_name"],
+          'contact_source' => ts('PCP Team Invite'),
+          'email-Primary'  => $details["email"],
+          'display_name'   => $displayName,
+        );
+        $mailParams['email'][$displayName] = $contactParams[$key];
       }
     }
     
+    if(empty($mailParams)) {
+      return NULL;
+    }
+    
+    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $targetID   = CRM_Utils_Array::key('Activity Targets', $activityContacts);
       //friend contacts creation
     foreach ($contactParams as $key => $value) {
       //create contact only if it does not exits in db
@@ -409,11 +493,25 @@ class  CRM_Pcpteams_Utils {
       if (!$contact) {
         $contact = CRM_Contact_BAO_Contact::createProfileContact($value, CRM_Core_DAO::$_nullArray);
       }
+       // attempt to save activity targets
+      $targetParams = array(
+        'activity_id' => $activityId,
+        'contact_id'  => $contact,
+        'record_type_id' => $targetID
+      );
+
+      // See if it already exists
+      $activityContact = new CRM_Activity_DAO_ActivityContact();
+      $activityContact->activity_id = $activityId;
+      $activityContact->contact_id = $contact;
+      $activityContact->find(TRUE);
+      if (empty($activityContact->id)) {
+        CRM_Activity_BAO_ActivityContact::create($targetParams);
+      }
     }
-    $mailParams['message'] = CRM_Utils_Array::value('suggested_message', $emailParams);
     $mailParams['messageTemplateID'] = $message_template_id;
-    $mailParams['page_url'] = CRM_Utils_System::url('civicrm/pcp/manage', "reset=1&id={$teampcpId}", TRUE, NULL, FALSE, TRUE);
-    self::sendMail($contact_id, $mailParams);
+    
+    return self::sendMail($contact_id, $mailParams);
   }
   
   static function getPcpBlockId($eventId, $component = 'event') {
@@ -440,31 +538,107 @@ class  CRM_Pcpteams_Utils {
     return $dao->id;
   }
   
-  static function hasPermission($pcpId, $loggedContactId, $action = CRM_Core_Permission::EDIT) {
+  static function hasPermission($pcpId = NULL, $contactId = NULL, $action = CRM_Core_Permission::EDIT, $teamPcpId = NULL) {
     if(empty($pcpId)) {
+      if($contactId) {
+        return CRM_Contact_BAO_Contact_Permission::allow($contactId, $action);
+      }
       return NULL;
     }
     $pcpOwnerContactId  = CRM_Core_DAO::getFieldValue('CRM_PCP_DAO_PCP', $pcpId, 'contact_id');
     $hasPermission      = FALSE;
-    if(empty($loggedContactId)) {
-      $loggedContactId = CRM_Pcpteams_Utils::getloggedInUserId();
+    if(empty($contactId)) {
+      $contactId = CRM_Pcpteams_Utils::getloggedInUserId();
     } 
     // Check the pcp page which he is looking is the owner of pcp, then allow 'edit' permission 
-    if($pcpOwnerContactId == $loggedContactId) {
-      $hasPermission = TRUE;
+    if($pcpOwnerContactId == $contactId) {
+      return TRUE;
     } // Else if he is the memeber of the pcp , then allow 'view' permission
     else if ($action == CRM_Core_Permission::VIEW) { 
       // Find PCPs for this contact 
+      // FIXME: checking the user is the member of team pcp
       $pcpQuery = "
         SELECT cps.id FROM civicrm_value_pcp_custom_set cps 
         INNER JOIN civicrm_pcp cp ON (cp.id = cps.entity_id)
         WHERE cps.team_pcp_id = %1 AND cp.contact_id = %2";
       $pcpQueryParams = array(
         1 => array($pcpId, 'Integer'),
-        2 => array($loggedContactId, 'Integer'),
+        2 => array($contactId, 'Integer'),
       );
       if(CRM_Core_DAO::singleValueQuery($pcpQuery, $pcpQueryParams)) {
-          $hasPermission = TRUE;
+          return TRUE;
+      }
+      //check the user can view the other members related to user team PCP
+      $getUserTeamQuery = "
+        SELECT cps.team_pcp_id FROM civicrm_value_pcp_custom_set cps 
+        INNER JOIN civicrm_pcp cp ON (cp.id = cps.entity_id)
+        WHERE cp.contact_id = %1
+      ";
+      $getUserTeamPcpDAO = CRM_Core_DAO::executeQuery($getUserTeamQuery, array( 1 => array($contactId, 'Integer')));
+      $userTeamPcps = array();
+      while ($getUserTeamPcpDAO->fetch()) {
+        $userTeamPcps[] = $getUserTeamPcpDAO->team_pcp_id;
+      }
+      
+      if (!empty($userTeamPcps)) {
+        $userTeamPcpIds = implode(', ', $userTeamPcps);
+        $memberQuery = "
+          SELECT cp.id
+          FROM civicrm_pcp cp
+          LEFT JOIN civicrm_value_pcp_custom_set cpcs ON (cp.id = cpcs.entity_id)
+          LEFT JOIN civicrm_value_pcp_relationship_set crcs ON (cp.id = crcs.pcp_a_b)
+          WHERE (cpcs.entity_id = %1 AND cpcs.team_pcp_id IN ({$userTeamPcpIds})) OR ( crcs.pcp_a_b = %1 AND crcs.pcp_b_a IN ({$userTeamPcpIds}))
+        ";
+        $memberPcp = CRM_Core_DAO::singleValueQuery($memberQuery, array( 1 => array($pcpId, 'Integer')));
+        if ($memberPcp) {
+          return TRUE;
+        }
+      }
+      //check is any pending request;
+      $relQuery = "
+        SELECT id 
+        FROM civicrm_relationship
+        WHERE contact_id_a = %1 AND contact_id_b = %2 AND relationship_type_id = %3
+      ";
+      $relTypeId = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', CRM_Pcpteams_Constant::C_TEAM_RELATIONSHIP_TYPE, 'id', 'name_a_b');
+      $relQueryParams = array(
+        1 => array( $contactId, 'Integer'),
+        2 => array( $pcpOwnerContactId, 'Integer'),
+        3 => array( $relTypeId, 'Integer'),
+      );
+      if (CRM_Core_DAO::singleValueQuery($relQuery, $relQueryParams)) {
+        return TRUE;
+      }
+      if (CRM_Contact_BAO_Contact_Permission::allow($pcpOwnerContactId, CRM_Core_Permission::VIEW)) {
+        return TRUE;
+      }
+    }
+    else if ($action == CRM_Pcpteams_Constant::C_PERMISSION_MEMBER) { 
+      if ($pcpId && $teamPcpId) {
+        //check pcp custom set 
+        $queryParams = array( 
+          1 => array($pcpId, 'Integer'),
+          2 => array($teamPcpId, 'Integer')
+        );
+        $query = "
+          SELECT id FROM civicrm_value_pcp_custom_set 
+          WHERE entity_id = %1 AND team_pcp_id = %2
+        ";
+        $teamMemberExists = CRM_Core_Dao::singleValueQuery($query, $queryParams);
+        if ($teamMemberExists) {
+          return TRUE;
+        }
+        
+        
+        //check pcp relationship custom set
+        $query = "
+        SELECT id FROM civicrm_value_pcp_relationship_set
+        WHERE pcp_a_b = %1 AND pcp_b_a = %2
+        ";
+        $teamMemberExists = CRM_Core_Dao::singleValueQuery($query, $queryParams);
+        if ($teamMemberExists) {
+          return TRUE;
+        }
       }
     }
     else {
@@ -474,17 +648,20 @@ class  CRM_Pcpteams_Utils {
           WHERE cr.contact_id_a = %1 AND cr.contact_id_b = %2 AND cr.is_active = %3 AND crt.name_a_b = %4";
 
         $queryParams = array(
-          1 => array($loggedContactId, 'Integer'),
+          1 => array($contactId, 'Integer'),
           2 => array($pcpOwnerContactId, 'Integer'),
           3 => array(1, 'Integer'),
           4 => array(CRM_Pcpteams_Constant::C_TEAM_ADMIN_REL_TYPE, 'String'),
         );
 
         if(CRM_Core_DAO::singleValueQuery($query, $queryParams)) {
-          $hasPermission = TRUE;
+          return TRUE;
+        }
+        if (CRM_Contact_BAO_Contact_Permission::allow($pcpOwnerContactId, CRM_Core_Permission::EDIT)) {
+          return TRUE;
         }
       }
-    return $hasPermission;
+    return FALSE;
   }
 
   static function getTeamAdminByTeamContactId($teamContactId) {
@@ -517,26 +694,31 @@ class  CRM_Pcpteams_Utils {
     if (empty($values['email_from'])) {
       $values['email_from'] = $email;
     }
-    foreach ($values['email'] as $displayName => $emailTo) {
-      if ($emailTo) {
+    
+    $tplParams = array();
+    if (isset($values['tplParams'])) {
+      $tplParams = $values['tplParams'];
+    }
+    $sent = FALSE;
+    foreach ($values['email'] as $key => $emailDetails) {
+      if ($emailDetails['email-Primary']) {
         // FIXME: factor the below out of the foreach loop
-        CRM_Core_BAO_MessageTemplate::sendTemplate(
+        $tplParams['inviteeFirstName'] = $emailDetails['first_name'];
+        $tplParams['inviteeEmail'] = $emailDetails['email-Primary'];
+        list($sent, $subject, $text, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate(
           array(
             'messageTemplateID' => $values['messageTemplateID'],
-            'contactId' => $contactID,
-            'tplParams' => array(
-              'senderContactName' => $fromName,
-              'pageURL' => $values['page_url'],
-              'senderMessage' => $values['message']
-            ),
-            'from' => "$fromName <{$values['email_from']}>",
-            'toName' => $displayName,
-            'toEmail' => $emailTo,
-            'replyTo' => $email,
+            'contactId'         => $contactID,
+            'tplParams'         => $tplParams,
+            'from'              => "$fromName <{$values['email_from']}>",
+            'toName'            => $emailDetails['display_name'],
+            'toEmail'           => $emailDetails['email-Primary'],
+            'replyTo'           => $email,
           )
         );
       }
     }
+    return $sent ? TRUE : FALSE;
   }
 
 }
