@@ -443,6 +443,7 @@ class  CRM_Pcpteams_Utils {
         'version'           => 3,
       );
       $activityParams = array_merge($activityParams, $params);
+      CRM_Core_Error::debug_var('activityParams', $activityParams);
       return civicrm_api( 'Activity','create', $activityParams );
     }
   }
