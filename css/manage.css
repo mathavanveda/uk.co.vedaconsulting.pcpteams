@@ -273,4 +273,6 @@
   margin-bottom: 10px !important;
 }
 
-#pcp_intro_text { height: 8em; }
+#pcp_intro_text { height: 12em; }
+
+#pcp_page_text { display: none; } /* don't need this */
