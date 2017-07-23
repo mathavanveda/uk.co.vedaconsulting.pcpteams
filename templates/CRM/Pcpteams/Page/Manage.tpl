@@ -225,6 +225,7 @@
 {literal}
 <script type="text/javascript">
 CRM.$(function($) {
+  var pcpid  = {/literal}{$pcpinfo.id}{literal};
   var apiUrl = {/literal}"{crmURL p='civicrm/ajax/rest' h=0 q='className=CRM_Pcpteams_Page_AJAX&fnName=inlineEditorAjax&snippet=6&json=1'}";{literal}
   var editparams = {
     type      : 'text',
@@ -232,7 +233,7 @@ CRM.$(function($) {
     //style     : 'inherit',
     cancel    : 'Cancel',
     submit    : 'OK',
-    submitdata: {pcp_id: {/literal}{$pcpinfo.id}{literal}},
+    submitdata: {pcp_id: pcpid},
     tooltip   : ts('Click to edit..'),
     indicator : ts('Saving..'),
     callback  : function( editedValue ){
@@ -262,11 +263,9 @@ CRM.$(function($) {
   });
 
   // inline ckeditor saves
-  $('.crm-pcp-inline-ckedit').mouseout(function(){
+  $('#pcp_intro_text').focusout(function(){
     var data = CKEDITOR.instances.pcp_intro_text.getData();
-    editparams['submitdata']['id']    = $(this).attr('id');
-    editparams['submitdata']['value'] = data;
-    CRM.$.post(apiUrl, editparams['submitdata'], function(result){}, 'json');
+    CRM.$.post(apiUrl, {id: 'pcp_intro_text', pcp_id: pcpid, value: data}, function(result) {}, 'json');
   });
   
   // inline text edit for buttons
