@@ -271,7 +271,7 @@ class  CRM_Pcpteams_Utils {
       'create', 
       array(
         'version'         => 3,
-        'title'           => $contactDisplayName.' : '.$eventDetails['title'],
+        'title'           => $contactDisplayName,
         'intro_text'      => "Welcome to ".$contactDisplayName.'\'s PCP',
         'contact_id'      => $pcpContactId,
         'page_id'         => $componentPageId,
