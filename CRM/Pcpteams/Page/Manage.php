@@ -117,8 +117,8 @@ class CRM_Pcpteams_Page_Manage extends CRM_Core_Page {
     $this->assign('donationInfo', $aDonationResult);
     if (empty($aDonationResult['values']) && empty($pcpDetails['team_pcp_id']) && empty($pcpDetails['pending_team_pcp_id'])) {
       // if no donations, no team or team-requests, show a message
-      $statusTitle = ts("Congratulations, you are now signed up for '%1'", array(1=>$pcpDetails['page_title']));
-      $statusText  = ts('We have created this page to help you with your fundraising. Please take a few minutes to complete a couple of details below, you will need to add a fundraising target to give you something to aim for (aim high!) and write a little bit about yourself to encourage people to help you reach that target. If you want to do this event as a team or in memory of a loved one you can set that up below as well.');
+      $statusTitle = ts("Thanks for creating a Personal Campaign Page!");
+      $statusText  = ts("Please take a moment to customize your page. You can edit your photo, set a fundraising goal, and share your story by clicking in those fields. For detailed instructions visit https://vestibular.org/baw, or contact us at (800) 837-8428 / info@vestibular.org.");
       $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
     }
       
