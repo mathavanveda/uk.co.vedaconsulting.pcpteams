@@ -52,9 +52,11 @@ function civicrm_api3_pcpteams_create($params) {
   $pcpBlock->entity_id = $params['page_id'];
   $pcpBlock->find(TRUE);
   $params['pcp_block_id'] = $pcpBlock->id;
-  $params['goal_amount']  = CRM_Utils_Rule::cleanMoney($params['goal_amount']);
+  if (!empty($params['goal_amount'])) {
+    $params['goal_amount']  = CRM_Utils_Rule::cleanMoney($params['goal_amount']);
+  }
 
-  // 1 -> waiting review
+ // 1 -> waiting review
   // 2 -> active / approved (default for now)
   $params['status_id'] = CRM_Utils_Array::value('status_id', $params, 2);
 
