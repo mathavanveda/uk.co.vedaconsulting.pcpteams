@@ -118,7 +118,7 @@ class CRM_Pcpteams_Page_Manage extends CRM_Core_Page {
     if (empty($aDonationResult['values']) && empty($pcpDetails['team_pcp_id']) && empty($pcpDetails['pending_team_pcp_id'])) {
       // if no donations, no team or team-requests, show a message
       $statusTitle = ts("Thanks for creating a Personal Campaign Page!");
-      $statusText  = ts("Please take a moment to customize your page. You can edit your photo, set a fundraising goal, and share your story by clicking in those fields. For detailed instructions visit https://vestibular.org/baw, or contact us at (800) 837-8428 / info@vestibular.org.");
+      $statusText  = ts("Please take a moment to customize your page. You can edit your photo, set a fundraising goal, and share your story by clicking in those fields. For detailed instructions visit <a href='https://vestibular.org/baw'>https://vestibular.org/baw</a>, or contact us at (800) 837-8428 / <a href='mailto:info@vestibular.org'>info@vestibular.org</a>.");
       $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
     }
       
