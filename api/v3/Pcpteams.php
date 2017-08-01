@@ -469,7 +469,7 @@ function _civicrm_api3_pcpteams_getMyTeamInfo_spec(&$params) {
 function _getTeamInfoActionLink($entityId, $teamPcpId, $role){
   
   //action URLs
-  $pageURL    = CRM_Utils_System::url('civicrm/pcp/page', "reset=1&component=event&id={$teamPcpId}"); 
+  $pageURL    = CRM_Utils_System::url('civicrm/pcp/manage', "reset=1&component=event&id={$teamPcpId}"); 
   $span = "
     <span>
       <a href=\"{$pageURL}\" class=\"action-item crm-hover-button\" title='URL for this Page' >View Page</a>
