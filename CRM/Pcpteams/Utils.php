@@ -222,7 +222,7 @@ class  CRM_Pcpteams_Utils {
     $return['pcp_count']    = $eventDetails['count'];
     if($eventDetails['count'] > 0){
       foreach ($eventDetails['values'] as $pcps) {
-        $pcpAmounts[$pcps['id']] = CRM_PCP_BAO_PCP::thermoMeter($pcps['id']);
+        $pcpAmounts[$pcps['id']] = CRM_Pcpteams_BAO_PCP::thermoMeter($pcps['id']);
       }
     }
     $maxAmoutnRaisedPcp = array_search( max($pcpAmounts) , $pcpAmounts );
@@ -271,7 +271,7 @@ class  CRM_Pcpteams_Utils {
       'create', 
       array(
         'version'         => 3,
-        'title'           => $contactDisplayName.' : '.$eventDetails['title'],
+        'title'           => $contactDisplayName,
         'intro_text'      => "Welcome to ".$contactDisplayName.'\'s PCP',
         'contact_id'      => $pcpContactId,
         'page_id'         => $componentPageId,
@@ -466,7 +466,7 @@ class  CRM_Pcpteams_Utils {
       //create contact only if it does not exits in db
       $value['email'] = $value['email-Primary'];
       $value['check_permission'] = FALSE;
-      $contact = CRM_Core_BAO_UFGroup::findContact($value, NULL, 'Individual');
+      $contact = self::findContact($value, NULL, 'Individual');
 
       if (!$contact) {
         $contact = CRM_Contact_BAO_Contact::createProfileContact($value, CRM_Core_DAO::$_nullArray);
@@ -904,4 +904,28 @@ class  CRM_Pcpteams_Utils {
 
     return CRM_Core_BAO_Setting::setItem($settingValue, NULL, $settingName);
   }  
+
+  /**
+   * Searches for a contact in the db with similar attributes.
+   *
+   * @param array $params
+   *   The list of values to be used in the where clause.
+   * @param int $id
+   *   The current contact id (hence excluded from matching).
+   * @param string $contactType
+   *
+   * @return int|null
+   *   contact_id if found, null otherwise
+   */
+  public static function findContact(&$params, $id = NULL, $contactType = 'Individual') {
+    $dedupeParams = CRM_Dedupe_Finder::formatParams($params, $contactType);
+    $dedupeParams['check_permission'] = CRM_Utils_Array::value('check_permission', $params, TRUE);
+    $ids = CRM_Dedupe_Finder::dupesByParams($dedupeParams, $contactType, 'Supervised', array($id));
+    if (!empty($ids)) {
+      return implode(',', $ids);
+    }
+    else {
+      return NULL;
+    }
+  }
 }

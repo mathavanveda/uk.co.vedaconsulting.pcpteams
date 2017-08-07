@@ -5,9 +5,8 @@
     <!-- profile Image -->
     <div class="avatar-title-block">
         <div class="avatar">
-          <img id="{$pcpinfo.image_id}" {if $is_edit_page} class="crm-pcp-inline-pic-edit" {/if} href="{$updateProfPic}" width="150" height="150" src="{$pcpinfo.image_url}">
+          <img id="{$pcpinfo.image_id}" {if $is_edit_page} class="crm-pcp-inline-pic-edit" {/if} href="{$updateProfPic}" src="{$pcpinfo.image_url}">
         </div>
-        <div id="pcp_title" class="title {if $is_edit_page}crm-pcp-inline-text-edit{/if}">{$pcpinfo.title}</div>
       <div class="clear"></div>
     </div>
     <div id="pcp-progress" class="pcp-progress">
@@ -24,10 +23,11 @@
         <span class="text">{ts}Of target{/ts}</span>
         <div>
           <div class="amount symbol">{$pcpinfo.currency_symbol}</div>
-          <div id="pcp_goal_amount" class="amount {if $is_edit_page}crm-pcp-inline-text-edit{/if}">{$pcpinfo.goal_amount}</div>
+          <div id="pcp_goal_amount" class="amount {if $is_edit_page}crm-pcp-inline-text-edit{/if}" data-placeholder="Goal Amount">{$pcpinfo.goal_amount}</div>
         </div>
       </div> 
     </div>
+    <div id="pcp_title" class="title {if $is_edit_page}crm-pcp-inline-text-edit{/if}" data-placeholder="Page Title">{$pcpinfo.title}</div>
     <div class="clear"></div>
   </div>
   <!-- End header-->
@@ -47,11 +47,12 @@
     <div class="totaliser-giveto-block">
       <div class="totaliser">
         <div class="colheader">
-          Totaliser
+          {ts}Totalizer{/ts}
         </div>
         <!-- BIO section -->
-        <div id="pcp_intro_text" {if $is_edit_page}class="intro-text crm-pcp-inline-text-edit" data-edit-params='{ldelim}"cid": "{$contactId}", "class_name": "CRM_Contact_Form_Inline_ContactInfo"{rdelim}' {else} class="intro-text" {/if}>{$pcpinfo.intro_text}</div>
-        <div id="pcp_page_text" class="page-text {if $is_edit_page}crm-pcp-inline-text-edit{/if}">{$pcpinfo.page_text}</div>
+        <div id="pcp_intro_text" {if $is_edit_page}class="intro-text crm-pcp-inline-ckedit" contenteditable="true" data-edit-params='{ldelim}"cid": "{$contactId}", "class_name": "CRM_Contact_Form_Inline_ContactInfo"{rdelim}' {else} class="intro-text" {/if} data-placeholder="Intro Text">{$pcpinfo.intro_text}</div>
+        <div id="pcp_page_text" class="page-text {if $is_edit_page}crm-pcp-inline-text-edit{/if}" data-placeholder="Page Description">{$pcpinfo.page_text}</div>
+        <br>
         <!-- BIO section ends -->
         <div class="team-section">
           {if $pcpinfo.team_pcp_id}
@@ -119,7 +120,7 @@
       <div class="givetoname">
         <div class="colheader">
           <div class="btn-donate">
-            <a href="{$pcpinfo.donate_url}"><span id="donate_link_text" {if $is_edit_page}class="crm-pcp-inline-btn-edit"{/if}>{ts}Donate{/ts}</span></a>
+            <a href="{$pcpinfo.donate_url}"><span id="donate_link_text" data-placeholder="name of he button">{ts}Donate{/ts}</span></a>
           </div>
         </div>
         {if !empty($donationInfo)}
@@ -127,7 +128,7 @@
         {/if}
         {foreach from=$donationInfo item=donations}
           <div class="top-donations">
-            {$donations.display_name} has donated <strong> {$donations.total_amount|crmMoney} </strong>
+            {$donations.nickname} has donated <strong>{$donations.total_amount}</strong>
           </div>
         {/foreach}
       </div>
@@ -224,6 +225,7 @@
 {literal}
 <script type="text/javascript">
 CRM.$(function($) {
+  var pcpid  = {/literal}{$pcpinfo.id}{literal};
   var apiUrl = {/literal}"{crmURL p='civicrm/ajax/rest' h=0 q='className=CRM_Pcpteams_Page_AJAX&fnName=inlineEditorAjax&snippet=6&json=1'}";{literal}
   var editparams = {
     type      : 'text',
@@ -231,7 +233,7 @@ CRM.$(function($) {
     //style     : 'inherit',
     cancel    : 'Cancel',
     submit    : 'OK',
-    submitdata: {pcp_id: {/literal}{$pcpinfo.id}{literal}},
+    submitdata: {pcp_id: pcpid},
     tooltip   : ts('Click to edit..'),
     indicator : ts('Saving..'),
     callback  : function( editedValue ){
@@ -241,8 +243,15 @@ CRM.$(function($) {
        $(this).css("border", "none");
      }
   }
+
   // inline text edit
-  $('.crm-pcp-inline-text-edit').editable(apiUrl, editparams);
+  //#3515 Now we display editable field placholder of each
+  $('.crm-pcp-inline-text-edit').each(function(){
+    editparams['placeholder'] = ts('Click to edit ') + $(this).attr('data-placeholder');
+    editparams['tooltip'] = ts('Click to edit ') + $(this).attr('data-placeholder');
+    $(this).editable(apiUrl, editparams);
+  });
+  // $('.crm-pcp-inline-text-edit').editable(apiUrl, editparams);
   $('.crm-pcp-inline-text-edit').mouseover(function(){
     $(this).css("background", "#E5DEDE");
     $(this).css("border", "2px dashed #c4c4c4");
@@ -253,21 +262,33 @@ CRM.$(function($) {
     $(this).css("border", "none");
   });
 
+  // inline ckeditor saves
+  $('#pcp_intro_text').focusout(function(){
+    var data = CKEDITOR.instances.pcp_intro_text.getData();
+    CRM.$.post(apiUrl, {id: 'pcp_intro_text', pcp_id: pcpid, value: data}, function(result) {}, 'json');
+  });
+  
   // inline text edit for buttons
   editparams['callback'] = function( editedValue ){
     var editedId = cj(this).attr('id');
     $(this).html(editedValue);
-    $(this).css("background", "#e0001a");
+    $(this).css("background", "#FFFFFF");
     $(this).css("border", "none");
   }
-  $('.crm-pcp-inline-btn-edit').editable(apiUrl, editparams);
+  //#3515 Now we display editable field placholder of each
+  $('.crm-pcp-inline-btn-edit').each(function(){
+    editparams['placeholder'] = ts('Click to edit ') + $(this).attr('data-placeholder');
+    editparams['tooltip'] = ts('Click to edit ') + $(this).attr('data-placeholder');
+    $(this).editable(apiUrl, editparams);
+  });  
+  // $('.crm-pcp-inline-btn-edit').editable(apiUrl, editparams);
   $('.crm-pcp-inline-btn-edit').mouseover(function(){
     $(this).css("background", "rgb(19, 18, 18)");
     $(this).css("border", "2px dashed #c4c4c4");
     $(this).css("border-radius", "10px");
   });
   $('.crm-pcp-inline-btn-edit').mouseout(function(){
-    $(this).css("background", "#e0001a");
+    $(this).css("background", "inherit");
     $(this).css("border", "none");
   });
 
@@ -338,7 +359,7 @@ CRM.$(function($) {
     thickness: 15,
     lineCap: "round",
     fill: {
-      gradient: ["#FF0000", "#e0001a"]
+      gradient: ["#80BBCC", "#007698"]
     },
   }).on('circle-animation-progress', function(event, progress) {
     if ((100 * progress) <= circleVar) {

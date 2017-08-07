@@ -52,9 +52,11 @@ function civicrm_api3_pcpteams_create($params) {
   $pcpBlock->entity_id = $params['page_id'];
   $pcpBlock->find(TRUE);
   $params['pcp_block_id'] = $pcpBlock->id;
-  $params['goal_amount']  = CRM_Utils_Rule::cleanMoney($params['goal_amount']);
+  if (!empty($params['goal_amount'])) {
+    $params['goal_amount']  = CRM_Utils_Rule::cleanMoney($params['goal_amount']);
+  }
 
-  // 1 -> waiting review
+ // 1 -> waiting review
   // 2 -> active / approved (default for now)
   $params['status_id'] = CRM_Utils_Array::value('status_id', $params, 2);
 
@@ -467,7 +469,7 @@ function _civicrm_api3_pcpteams_getMyTeamInfo_spec(&$params) {
 function _getTeamInfoActionLink($entityId, $teamPcpId, $role){
   
   //action URLs
-  $pageURL    = CRM_Utils_System::url('civicrm/pcp/page', "reset=1&component=event&id={$teamPcpId}"); 
+  $pageURL    = CRM_Utils_System::url('civicrm/pcp/manage', "reset=1&component=event&id={$teamPcpId}"); 
   $span = "
     <span>
       <a href=\"{$pageURL}\" class=\"action-item crm-hover-button\" title='URL for this Page' >View Page</a>
@@ -981,6 +983,41 @@ function civicrm_api3_pcpteams_getAllDonations($params) {
 
 function _civicrm_api3_pcpteams_getAllDonations_spec(&$params) {
   $params['page_id']['api.required'] = 1;
+  $params['pcp_id']['api.required'] = 1;
+}
+
+function civicrm_api3_pcpteams_honorRoll($params) {
+  $query = "
+    SELECT    
+    cc.id, 
+    cs.pcp_roll_nickname, 
+    cs.pcp_personal_note,
+    cc.total_amount, 
+    cc.currency
+    FROM      civicrm_contribution cc
+    LEFT JOIN civicrm_contribution_soft cs ON cc.id = cs.contribution_id
+    WHERE     cs.pcp_id = %1
+    AND       cs.pcp_display_in_roll = 1
+    AND       contribution_status_id = 1
+    AND       is_test = 0
+    ORDER BY  cc.receive_date DESC";
+  if (!empty($params['limit'])) {
+    $query .= " LIMIT {$params['limit']}";
+  }
+  $queryParams = array(
+    1 => array($params['pcp_id'], 'Integer'),
+  );
+  $dao = CRM_Core_DAO::executeQuery($query, $queryParams);
+  $honor = array();
+  while ($dao->fetch()) {
+    $honor[$dao->id]['nickname'] = ucwords($dao->pcp_roll_nickname);
+    $honor[$dao->id]['total_amount'] = CRM_Utils_Money::format($dao->total_amount, $dao->currency);
+    $honor[$dao->id]['personal_note'] = $dao->pcp_personal_note;
+  }
+  return $honor;
+}
+
+function _civicrm_api3_pcpteams_honorRoll_spec(&$params) {
   $params['pcp_id']['api.required'] = 1;
 }
 

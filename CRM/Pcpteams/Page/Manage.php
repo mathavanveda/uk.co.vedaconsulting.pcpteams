@@ -12,23 +12,22 @@ class CRM_Pcpteams_Page_Manage extends CRM_Core_Page {
     CRM_Core_Resources::singleton()
       ->addScriptFile('civicrm', 'packages/jquery/plugins/jquery.jeditable.min.js', CRM_Core_Resources::DEFAULT_WEIGHT, 'html-header')
       ->addScriptFile('civicrm', 'js/jquery/jquery.crmEditable.js', CRM_Core_Resources::DEFAULT_WEIGHT + 10, 'html-header')
+      ->addStyleFile('uk.co.vedaconsulting.pcpteams', 'css/manage.css', CRM_Core_Resources::DEFAULT_WEIGHT + 1000, 'html-header')
       ->addScriptFile('uk.co.vedaconsulting.pcpteams', 'packages/jquery-circle-progress/dist/circle-progress.js', CRM_Core_Resources::DEFAULT_WEIGHT + 20, 'html-header')
-      ->addStyleFile('uk.co.vedaconsulting.pcpteams', 'css/manage.css', CRM_Core_Resources::DEFAULT_WEIGHT + 1000, 'html-header');
-
+      ->addScriptFile('civicrm', 'bower_components/ckeditor/ckeditor.js', 0, 'page-header');
     $session = CRM_Core_Session::singleton();
     $this->_userID = $session->get('userID');
-    if (!$this->_userID) {
-      CRM_Core_Error::fatal(ts('You must be logged in to view this page.'));
-    } 
-    else {
-      $pcpId = CRM_Utils_Request::retrieve('id', 'Positive', CRM_Core_DAO::$_nullArray, TRUE); 
-      if (!CRM_Pcpteams_Utils::hasPermission($pcpId, $this->_userID, CRM_Core_Permission::VIEW)) {
-        CRM_Core_Error::fatal(ts('You do not have permission to view this Page.'));
-      }
+    $pcpId = CRM_Utils_Request::retrieve('id', 'Positive', CRM_Core_DAO::$_nullArray, TRUE); 
+    if (!CRM_Pcpteams_Utils::hasPermission($pcpId, $this->_userID, CRM_Core_Permission::VIEW)) {
+      CRM_Core_Error::fatal(ts('You do not have permission to view this Page.'));
     }
-    //set user can edit or view page.
-    $isEdit = CRM_Pcpteams_Utils::hasPermission($pcpId, $this->_userID, CRM_Core_Permission::EDIT);
-    $isMember = CRM_Pcpteams_Utils::hasPermission($pcpId, $this->_userID, CRM_Pcpteams_Constant::C_PERMISSION_MEMBER);
+    $isEdit  = FALSE;
+    $isMember = FALSE;
+    if ($this->_userID) {
+      //set user can edit or view page.
+      $isEdit = CRM_Pcpteams_Utils::hasPermission($pcpId, $this->_userID, CRM_Core_Permission::EDIT);
+      $isMember = CRM_Pcpteams_Utils::hasPermission($pcpId, $this->_userID, CRM_Pcpteams_Constant::C_PERMISSION_MEMBER);
+    }
     $this->assign("is_edit_page", $isEdit);
     $this->_isEditPermission = $isEdit;
     $this->assign("is_member", $isMember);
@@ -47,33 +46,33 @@ class CRM_Pcpteams_Page_Manage extends CRM_Core_Page {
     //FIXME: proper status message
     switch ($opBtn) {
       case 'join':
-        $statusTitle = "Team Request Sent";
-        $statusText  = 'A notification has been sent to the team. Once approved, team should be visible on your page.';
+        $statusTitle = ts("Team Request Sent");
+        $statusText  = ts('A notification has been sent to the team. Once approved, team should be visible on your page.');
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;
       case 'create':
-        $statusTitle = "New Team Created";
-        $statusText  = "That's Great, You have successfully created the Team";
+        $statusTitle = ts("New Team Created");
+        $statusText  = ts("That's Great, You have successfully created the Team");
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;
       case 'invite':
-        $statusTitle = "Invite Team";
-        $statusText  = "Invitation request(s) has been sent.";
+        $statusTitle = ts("Invite Team");
+        $statusText  = ts("Invitation request(s) has been sent.");
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;
       case 'approve':
-        $statusTitle = "Team Member Request Approved";
-        $statusText  = "Team member request has been approved.";
+        $statusTitle = ts("Team Member Request Approved");
+        $statusText  = ts("Team member request has been approved.");
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;
       case 'decline':
-        $statusTitle = "Team Member Request Declined";
-        $statusText  = "Team member request has been declined.";
-        $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
+        $statusTitle = ts("Team Member Request Declined");
+        $statusText  = ts("Team member request has been declined.");
+        $this->setPcpStts(atus($statusText, $statusTitle, 'pcp-info'));
         break;
       case 'pending':
-        $statusTitle = "Pending Request";
-        $statusText  = "Pending Request has been cancelled.";
+        $statusTitle = ts("Pending Request");
+        $statusText  = ts("Pending Request has been cancelled.");
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
         break;        
       default:
@@ -108,19 +107,18 @@ class CRM_Pcpteams_Page_Manage extends CRM_Core_Page {
     $this->assign('rankInfo', $aRankResult['values'][0]);
 
     //Top Donations    
-    $aDonationResult = civicrm_api('pcpteams', 'getAllDonations', array(
-      'version' => 3
-      , 'sequential'  => 1
-      , 'pcp_id'      => $pcpId
-      , 'page_id'     => $pcpDetails['page_id']
-      , 'limit'       => 10
+    $aDonationResult = civicrm_api('pcpteams', 'honorRoll', array(
+      'version'     => 3,
+      'sequential'  => 1,
+      'pcp_id'      => $pcpId,
+      'limit'       => 10
       )
     );
-    $this->assign('donationInfo', $aDonationResult['values']);
+    $this->assign('donationInfo', $aDonationResult);
     if (empty($aDonationResult['values']) && empty($pcpDetails['team_pcp_id']) && empty($pcpDetails['pending_team_pcp_id'])) {
       // if no donations, no team or team-requests, show a message
-      $statusTitle = "Congratulations, you are now signed up for '{$pcpDetails['page_title']}'";
-      $statusText  = ts('We have created this page to help you with your fundraising. Please take a few minutes to complete a couple of details below, you will need to add a fundraising target to give you something to aim for (aim high!) and write a little bit about yourself to encourage people to help you reach that target. If you want to do this event as a team or in memory of a loved one you can set that up below as well.');
+      $statusTitle = ts("Thanks for creating a Personal Campaign Page!");
+      $statusText  = ts("Please take a moment to customize your page. You can edit your photo, set a fundraising goal, and share your story by clicking in those fields. For detailed instructions visit <a href='https://vestibular.org/baw'>https://vestibular.org/baw</a>, or contact us at (800) 837-8428 / <a href='mailto:info@vestibular.org'>info@vestibular.org</a>.");
       $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
     }
       
@@ -141,17 +139,20 @@ class CRM_Pcpteams_Page_Manage extends CRM_Core_Page {
       $this->assign('teamMemberRequestInfo', isset($teamMemberRequestInfo['values']) ? $teamMemberRequestInfo['values'] : NULL);
       $this->assign('teamMemberRequestCount', $teamMemberRequestInfo['count']);
       if (!empty($teamMemberRequestInfo['values']) && $this->_isEditPermission) {
-        $statusTitle = "New member request";
-        $statusText  = 'You have ' . count($teamMemberRequestInfo['values']) . ' new member request(s). Click <a id="showMemberRequests" class="pcp-button pcp-btn-red" href="#member-req-block">here</a> to manage them.';
+        $statusTitle = ts("New member request");
+        $statusText  = ts("You have %1 new member request(s). Click <a id='showMemberRequests' class='pcp-button pcp-btn-red' href='#member-req-block'>here</a> to manage them.", array(1=>count($teamMemberRequestInfo['values'])));
         $this->setPcpStatus($statusText, $statusTitle, 'pcp-info');
       }
     }
 
     //set Page title
-    $pageTitle = "Individual Page : ". $pcpDetails['title'];
+    $pageTitle = ts("Participant Page");
     if (!empty($pcpDetails['is_teampage'])) {
-      $pageTitle = "Team Page : ". $pcpDetails['title'];
-    }    
+      $pageTitle = ts("Team Page");
+    }
+    if (!empty($pcpDetails['title'])) {
+      $pageTitle = ts($pageTitle.": %1", array(1=>$pcpDetails['title']));
+    }
     CRM_Utils_System::setTitle($pageTitle);
     
     //Pcp layout button and URLs
